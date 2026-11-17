@@ -1,9 +1,10 @@
+
 /* =========================================
    RANKPULSE — MAIN JAVASCRIPT
 ========================================= */
 
 const SUPABASE_URL = "https://nwuyuncvtaliryuoqrap.supabase.co";
-const SUPABASE_KEY = "PASTE_YOUR_EXISTING_PUBLISHABLE_KEY_HERE";
+const SUPABASE_KEY = "sb_publishable_qTkztL9y-_W4I-x99J0REQ_Y0TDwzzM";
 const API_BASE = "https://rankpulseapi.kaiiiiiiii6767.workers.dev/api";
 
 const $ = id => document.getElementById(id);
@@ -55,7 +56,7 @@ function navigateTo(page) {
   document.querySelector(`[data-page="${page}"]`)?.classList.add("active");
 
   const button = document.querySelector(`[data-page="${page}"]`);
-  $("topbarTitle").textContent = button?.textContent || page;
+  if ($("topbarTitle")) $("topbarTitle").textContent = button?.textContent || page;
 
   if (page === "heroes" || page === "tierlist" || page === "movers") loadHeroes();
   if (page === "support") loadTickets();
@@ -92,29 +93,30 @@ async function refreshAuth() {
       currentUser.email ||
       "Player";
 
-    $("topAccountName").textContent = username;
-    $("sidebarUsername").textContent = username;
-    $("sidebarRole").textContent = profile?.role || "user";
-    $("sidebarAvatar").textContent = username.charAt(0).toUpperCase();
+    if ($("topAccountName")) $("topAccountName").textContent = username;
+    if ($("sidebarUsername")) $("sidebarUsername").textContent = username;
+    if ($("sidebarRole")) $("sidebarRole").textContent = profile?.role || "user";
+    if ($("sidebarAvatar")) $("sidebarAvatar").textContent = username.charAt(0).toUpperCase();
 
-    $("authStatus").textContent = "Signed in as " + username;
-    $("authForms").style.display = "none";
-    $("signOutButton").style.display = "inline-block";
+    if ($("authStatus")) $("authStatus").textContent = "Signed in as " + username;
+    if ($("authForms")) $("authForms").style.display = "none";
+    if ($("signOutButton")) $("signOutButton").style.display = "inline-block";
 
     const isStaff = ["support", "admin", "owner"].includes(profile?.role);
-    $("adminNavItem").style.display = isStaff ? "block" : "none";
+    if ($("adminNavItem")) $("adminNavItem").style.display = isStaff ? "block" : "none";
 
     await checkRestriction();
+    await loadMLBBAccount();
   } else {
     currentProfile = null;
-    $("topAccountName").textContent = "Guest";
-    $("sidebarUsername").textContent = "Guest";
-    $("sidebarRole").textContent = "Not signed in";
-    $("sidebarAvatar").textContent = "?";
-    $("authStatus").textContent = "You are not signed in.";
-    $("authForms").style.display = "block";
-    $("signOutButton").style.display = "none";
-    $("adminNavItem").style.display = "none";
+    if ($("topAccountName")) $("topAccountName").textContent = "Guest";
+    if ($("sidebarUsername")) $("sidebarUsername").textContent = "Guest";
+    if ($("sidebarRole")) $("sidebarRole").textContent = "Not signed in";
+    if ($("sidebarAvatar")) $("sidebarAvatar").textContent = "?";
+    if ($("authStatus")) $("authStatus").textContent = "You are not signed in.";
+    if ($("authForms")) $("authForms").style.display = "block";
+    if ($("signOutButton")) $("signOutButton").style.display = "none";
+    if ($("adminNavItem")) $("adminNavItem").style.display = "none";
   }
 
   updateDashboard();
@@ -134,9 +136,7 @@ async function signUp() {
   const { error } = await supabaseClient.auth.signUp({
     email,
     password,
-    options: {
-      data: { username, display_name: username }
-    }
+    options: { data: { username, display_name: username } }
   });
 
   message("authStatus", error ? error.message : "Account created. Check your email if confirmation is enabled.", !!error);
@@ -151,7 +151,6 @@ async function signIn() {
   });
 
   if (error) return message("authStatus", error.message, true);
-
   await refreshAuth();
 }
 
@@ -172,11 +171,11 @@ async function signOut() {
   location.reload();
 }
 
-$("signUpButton").onclick = signUp;
-$("signInButton").onclick = signIn;
-$("signOutButton").onclick = signOut;
-$("googleSignInButton").onclick = () => oauth("google");
-$("discordSignInButton").onclick = () => oauth("discord");
+if ($("signUpButton")) $("signUpButton").onclick = signUp;
+if ($("signInButton")) $("signInButton").onclick = signIn;
+if ($("signOutButton")) $("signOutButton").onclick = signOut;
+if ($("googleSignInButton")) $("googleSignInButton").onclick = () => oauth("google");
+if ($("discordSignInButton")) $("discordSignInButton").onclick = () => oauth("discord");
 
 async function checkRestriction() {
   if (!currentUser) return;
@@ -190,9 +189,7 @@ async function checkRestriction() {
   if (error || !data) return;
 
   if (data.status === "suspended" && data.suspended_until &&
-      new Date(data.suspended_until) <= new Date()) {
-    return;
-  }
+      new Date(data.suspended_until) <= new Date()) return;
 
   alert(
     "Your RankPulse account is restricted.\n\nStatus: " +
@@ -213,11 +210,13 @@ function updateDashboard() {
   const deaths = matches.reduce((s, m) => s + Number(m.deaths || 0), 0);
   const assists = matches.reduce((s, m) => s + Number(m.assists || 0), 0);
 
-  $("overviewWinRate").textContent = winRate + "%";
-  $("overviewMatches").textContent = total;
-  $("overviewKDA").textContent =
-    deaths ? ((kills + assists) / deaths).toFixed(2) :
-    (kills + assists).toFixed(2);
+  if ($("overviewWinRate")) $("overviewWinRate").textContent = winRate + "%";
+  if ($("overviewMatches")) $("overviewMatches").textContent = total;
+  if ($("overviewKDA")) {
+    $("overviewKDA").textContent = deaths
+      ? ((kills + assists) / deaths).toFixed(2)
+      : (kills + assists).toFixed(2);
+  }
 
   let streak = 0;
   for (const match of matches) {
@@ -225,10 +224,12 @@ function updateDashboard() {
     streak++;
   }
 
-  $("overviewStreak").textContent = streak;
-  $("recentMatches").innerHTML = total
-    ? matches.slice(0, 5).map(matchHTML).join("")
-    : "Your recent matches will appear here.";
+  if ($("overviewStreak")) $("overviewStreak").textContent = streak;
+  if ($("recentMatches")) {
+    $("recentMatches").innerHTML = total
+      ? matches.slice(0, 5).map(matchHTML).join("")
+      : "Your recent matches will appear here.";
+  }
 }
 
 function matchHTML(match) {
@@ -237,19 +238,20 @@ function matchHTML(match) {
     <span style="color:${match.result === "win" ? "#25c878" : "#ff5364"}">
       ${match.result === "win" ? "VICTORY" : "DEFEAT"}
     </span>
-    <p>${match.kills}/${match.deaths}/${match.assists} · ${escapeHTML(match.mode)}</p>
-    <button class="text-button" onclick="deleteMatch('${match.id}')">Delete</button>
+    <p>${escapeHTML(match.kills)}/${escapeHTML(match.deaths)}/${escapeHTML(match.assists)} · ${escapeHTML(match.mode)}</p>
+    <button class="text-button" onclick="deleteMatch('${escapeHTML(match.id)}')">Delete</button>
   </div>`;
 }
 
 function renderMatches() {
+  if (!$("matchHistoryList")) return;
   $("matchHistoryList").innerHTML = matches.length
     ? matches.map(matchHTML).join("")
     : '<div class="empty-state">No matches recorded yet.</div>';
 }
 
 function addMatch() {
-  const hero = $("matchHero").value.trim();
+  const hero = $("matchHero")?.value.trim();
   if (!hero) return alert("Enter a hero name.");
 
   matches.unshift({
@@ -272,68 +274,74 @@ function deleteMatch(id) {
   saveMatches();
 }
 
-$("addMatchButton").onclick = addMatch;
+if ($("addMatchButton")) $("addMatchButton").onclick = addMatch;
 
-$("clearMatchesButton").onclick = () => {
-  if (!confirm("Delete all match history on this device?")) return;
-  matches = [];
-  saveMatches();
-};
+if ($("clearMatchesButton")) {
+  $("clearMatchesButton").onclick = () => {
+    if (!confirm("Delete all match history on this device?")) return;
+    matches = [];
+    saveMatches();
+  };
+}
 
 /* =========================================
    RANK TARGET
 ========================================= */
 
-$("saveRankTarget").onclick = () => {
-  const current = $("currentRank").value;
-  const target = $("targetRank").value;
-  const stars = Number($("currentStars").value);
+if ($("saveRankTarget")) {
+  $("saveRankTarget").onclick = () => {
+    const current = $("currentRank").value;
+    const target = $("targetRank").value;
+    const stars = Number($("currentStars").value);
 
-  if (RANKS.indexOf(target) < RANKS.indexOf(current)) {
-    return message("rankTargetResult", "Your target rank is below your current rank.", true);
-  }
+    if (RANKS.indexOf(target) < RANKS.indexOf(current)) {
+      return message("rankTargetResult", "Your target rank is below your current rank.", true);
+    }
 
-  localStorage.setItem("rankpulse_current_rank", current);
-  localStorage.setItem("rankpulse_current_stars", stars);
-  localStorage.setItem("rankpulse_target", target);
+    localStorage.setItem("rankpulse_current_rank", current);
+    localStorage.setItem("rankpulse_current_stars", stars);
+    localStorage.setItem("rankpulse_target", target);
 
-  message("rankTargetResult", `Target saved: ${target}. Current rank: ${current}, ${stars} stars.`);
-};
+    message("rankTargetResult", `Target saved: ${target}. Current rank: ${current}, ${stars} stars.`);
+  };
+}
 
 /* =========================================
    WIN RATE CALCULATOR
 ========================================= */
 
-$("calculateWinRateButton").onclick = () => {
-  const matchesPlayed = Number($("calcMatches").value);
-  const rate = Number($("calcWinRate").value);
-  const target = Number($("calcTargetWinRate").value);
+if ($("calculateWinRateButton")) {
+  $("calculateWinRateButton").onclick = () => {
+    const matchesPlayed = Number($("calcMatches").value);
+    const rate = Number($("calcWinRate").value);
+    const target = Number($("calcTargetWinRate").value);
 
-  if (!Number.isInteger(matchesPlayed) || matchesPlayed <= 0 ||
-      rate < 0 || rate > 100 || target <= 0 || target > 100) {
-    return message("winRateResult", "Enter valid matches and percentages.", true);
-  }
+    if (!Number.isInteger(matchesPlayed) || matchesPlayed <= 0 ||
+        rate < 0 || rate > 100 || target <= 0 || target > 100) {
+      return message("winRateResult", "Enter valid matches and percentages.", true);
+    }
 
-  const wins = Math.round(matchesPlayed * rate / 100);
-  const actualRate = wins / matchesPlayed * 100;
+    const wins = Math.round(matchesPlayed * rate / 100);
+    const actualRate = wins / matchesPlayed * 100;
 
-  if (actualRate >= target) {
-    return message("winRateResult", `You already have approximately ${actualRate.toFixed(2)}%.`);
-  }
+    if (actualRate >= target) {
+      return message("winRateResult", `You already have approximately ${actualRate.toFixed(2)}%.`);
+    }
 
-  if (target === 100) {
-    return message("winRateResult", "You cannot reach 100% with a finite number of additional matches.", true);
-  }
+    if (target === 100) {
+      return message("winRateResult", "You cannot reach 100% with a finite number of additional matches.", true);
+    }
 
-  const needed = Math.ceil((target * matchesPlayed - 100 * wins) / (100 - target));
+    const needed = Math.ceil((target * matchesPlayed - 100 * wins) / (100 - target));
 
-  message("winRateResult",
-    `Estimated current wins: ${wins}<br>
-     Current calculated WR: ${actualRate.toFixed(2)}%<br>
-     Wins needed in a row: ${needed}<br>
-     Total matches afterward: ${matchesPlayed + needed}`
-  );
-};
+    message("winRateResult",
+      `Estimated current wins: ${wins}
+Current calculated WR: ${actualRate.toFixed(2)}%
+Wins needed in a row: ${needed}
+Total matches afterward: ${matchesPlayed + needed}`
+    );
+  };
+}
 
 /* =========================================
    RANK PROGRESS CALCULATOR
@@ -345,99 +353,156 @@ function rankPoints(rank, stars) {
   return offsets[index] + stars;
 }
 
-$("calculateRankButton").onclick = () => {
-  const currentRank = $("calcCurrentRank").value;
-  const targetRank = $("calcTargetRank").value;
-  const currentStars = Number($("calcCurrentStars").value);
-  const targetStars = Number($("calcTargetStars").value);
+if ($("calculateRankButton")) {
+  $("calculateRankButton").onclick = () => {
+    const currentRank = $("calcCurrentRank").value;
+    const targetRank = $("calcTargetRank").value;
+    const currentStars = Number($("calcCurrentStars").value);
+    const targetStars = Number($("calcTargetStars").value);
 
-  if (RANKS.indexOf(targetRank) < RANKS.indexOf(currentRank)) {
-    return message("rankCalculatorResult", "Target rank must be above current rank.", true);
-  }
+    if (RANKS.indexOf(targetRank) < RANKS.indexOf(currentRank)) {
+      return message("rankCalculatorResult", "Target rank must be above current rank.", true);
+    }
 
-  const difference = rankPoints(targetRank, targetStars) -
-    rankPoints(currentRank, currentStars);
+    const difference = rankPoints(targetRank, targetStars) -
+      rankPoints(currentRank, currentStars);
 
-  message("rankCalculatorResult",
-    difference >= 0
-      ? `Estimated progress: ${difference} stars. Rank thresholds are approximate; check the current season rules.`
-      : "Your target is below your current progress."
-  );
-};
+    message("rankCalculatorResult",
+      difference >= 0
+        ? `Estimated progress: ${difference} stars. Rank thresholds are approximate; check the current season rules.`
+        : "Your target is below your current progress."
+    );
+  };
+}
 
 /* =========================================
-   HERO API
+   HERO API — RONE ARENA
 ========================================= */
 
 async function loadHeroes() {
-  if (heroes.length) return renderHeroPages();
-
-  $("heroGrid").innerHTML = "Loading heroes...";
+  const grid = $("heroGrid");
+  if (grid) grid.innerHTML = "Loading MLBB heroes...";
 
   try {
-    const rank = $("heroRankFilter").value || "all";
-    const sort = $("heroSort").value || "win_rate";
+    const rank = $("heroRankFilter")?.value || "all";
+    const sort = $("heroSort")?.value || "win_rate";
 
     const response = await fetch(
-      `${API_BASE}/heroes/rank?days=7&rank=${encodeURIComponent(rank)}&sort_field=${encodeURIComponent(sort)}&size=200`
+      `${API_BASE}/heroes/rank?days=7&rank=${encodeURIComponent(rank)}&sort_field=${encodeURIComponent(sort)}&sort_order=desc&size=200`
     );
 
-    if (!response.ok) throw new Error("Hero API returned " + response.status);
+    if (!response.ok) {
+      throw new Error(`Rone API error: ${response.status}`);
+    }
 
-    const data = await response.json();
-    heroes = data.data || data.heroes || data || [];
+    const result = await response.json();
 
-    if (!Array.isArray(heroes)) heroes = [];
+    const records = result.data?.records;
+
+    if (!Array.isArray(records)) {
+      throw new Error("Unexpected Rone API response. Check the browser console.");
+    }
+
+    heroes = records.map(record => {
+      const row = record.data || {};
+      const hero = row.main_hero?.data || {};
+
+      return {
+        name: hero.name || "Unknown Hero",
+        image: hero.head || "",
+        win_rate: row.main_hero_win_rate,
+        pick_rate: row.main_hero_appearance_rate,
+        ban_rate: row.main_hero_ban_rate,
+        id: row.main_heroid
+      };
+    }).filter(hero => hero.name !== "Unknown Hero");
 
     renderHeroPages();
+    renderDraft();
+
   } catch (error) {
-    $("heroGrid").textContent = "Could not load hero data: " + error.message;
+    console.error("RankPulse hero loading:", error);
+    if (grid) grid.textContent = "Could not load heroes: " + error.message;
   }
 }
 
 function heroName(hero) {
-  return hero.name || hero.hero_name || hero.hero || "Unknown Hero";
+  return hero.name || "Unknown Hero";
 }
 
 function heroStat(hero, key) {
-  return hero[key] ?? hero[key.replace("_", "")] ?? "—";
+  const value = hero[key];
+
+  if (value === null || value === undefined) return "—";
+
+  const number = Number(value);
+  return Number.isFinite(number)
+    ? number.toFixed(2) + "%"
+    : String(value);
 }
 
 function renderHeroPages() {
-  const search = ($("heroSearch").value || "").toLowerCase();
-  const filtered = heroes.filter(h => heroName(h).toLowerCase().includes(search));
+  if (!$("heroGrid")) return;
 
-  $("heroGrid").innerHTML = filtered.map(h => `
+  const search = ($("heroSearch")?.value || "").toLowerCase();
+
+  const filtered = heroes.filter(hero =>
+    heroName(hero).toLowerCase().includes(search)
+  );
+
+  $("heroGrid").innerHTML = filtered.map(hero => `
     <div class="hero-card">
+      ${hero.image ? `
+        <img
+          src="${escapeHTML(hero.image)}"
+          alt="${escapeHTML(hero.name)}"
+          loading="lazy"
+          style="width:100%;height:150px;object-fit:cover;border-radius:10px 10px 0 0"
+        >
+      ` : ""}
       <div style="padding:15px">
-        <h3>${escapeHTML(heroName(h))}</h3>
-        <p>Win Rate: ${escapeHTML(heroStat(h, "win_rate"))}</p>
-        <p>Pick Rate: ${escapeHTML(heroStat(h, "pick_rate"))}</p>
-        <p>Ban Rate: ${escapeHTML(heroStat(h, "ban_rate"))}</p>
+        <h3>${escapeHTML(hero.name)}</h3>
+        <p>Win Rate: ${escapeHTML(heroStat(hero, "win_rate"))}</p>
+        <p>Pick Rate: ${escapeHTML(heroStat(hero, "pick_rate"))}</p>
+        <p>Ban Rate: ${escapeHTML(heroStat(hero, "ban_rate"))}</p>
       </div>
     </div>
   `).join("") || "No heroes found.";
 
-  $("tierListContent").innerHTML = [...filtered]
-    .sort((a, b) => Number(b.win_rate || 0) - Number(a.win_rate || 0))
-    .map((h, i) => `<div class="recommendation">
-      <strong>${i + 1}. ${escapeHTML(heroName(h))}</strong>
-      <span> · WR ${escapeHTML(heroStat(h, "win_rate"))}</span>
-    </div>`).join("");
+  if ($("tierListContent")) {
+    $("tierListContent").innerHTML = [...filtered]
+      .sort((a, b) => Number(b.win_rate || 0) - Number(a.win_rate || 0))
+      .map((hero, index) => `
+        <div class="recommendation">
+          <strong>${index + 1}. ${escapeHTML(hero.name)}</strong>
+          <span> · WR ${escapeHTML(heroStat(hero, "win_rate"))}</span>
+        </div>
+      `).join("") || "No heroes found.";
+  }
 
-  $("metaMovers").innerHTML =
-    '<div class="empty-state">Historical comparisons require previous API snapshots.</div>';
+  if ($("metaMovers")) {
+    $("metaMovers").innerHTML =
+      '<div class="empty-state">Historical comparisons require previous API snapshots.</div>';
+  }
 }
 
-$("heroSearch").addEventListener("input", renderHeroPages);
-$("heroRankFilter").addEventListener("change", () => { heroes = []; loadHeroes(); });
-$("heroSort").addEventListener("change", () => { heroes = []; loadHeroes(); });
+if ($("heroSearch")) {
+  $("heroSearch").addEventListener("input", renderHeroPages);
+}
+if ($("heroRankFilter")) {
+  $("heroRankFilter").addEventListener("change", loadHeroes);
+}
+if ($("heroSort")) {
+  $("heroSort").addEventListener("change", loadHeroes);
+}
 
 /* =========================================
    DRAFT COUNTER
 ========================================= */
 
 function renderDraft() {
+  if (!$("myTeamSlots")) return;
+
   $("myTeamSlots").innerHTML = allyPicks.map((h, i) => `
     <button class="team-slot" onclick="chooseDraftHero('ally',${i})">
       ${h ? escapeHTML(h) : "＋ Choose ally " + (i + 1)}
@@ -454,9 +519,7 @@ function renderDraft() {
     </button>`).join("");
 
   const selected = [...allyPicks, ...enemyPicks, ...bans].filter(Boolean);
-  const available = heroes
-    .map(heroName)
-    .filter(name => !selected.includes(name));
+  const available = heroes.map(heroName).filter(name => !selected.includes(name));
 
   $("recommendations").innerHTML = available.slice(0, 12).map(name =>
     `<button class="recommendation" onclick="addRecommendedHero('${escapeHTML(name).replace(/'/g, "\\'")}')">${escapeHTML(name)}</button>`
@@ -492,9 +555,9 @@ function addRecommendedHero(name) {
   renderDraft();
 }
 
-$("draftLane").onchange = renderDraft;
-$("pickOrder").onchange = renderDraft;
-$("laneOnly").onchange = renderDraft;
+if ($("draftLane")) $("draftLane").onchange = renderDraft;
+if ($("pickOrder")) $("pickOrder").onchange = renderDraft;
+if ($("laneOnly")) $("laneOnly").onchange = renderDraft;
 
 /* =========================================
    SUPPORT TICKETS
@@ -502,7 +565,7 @@ $("laneOnly").onchange = renderDraft;
 
 async function loadTickets() {
   if (!currentUser) {
-    $("ticketList").textContent = "Sign in to view your tickets.";
+    if ($("ticketList")) $("ticketList").textContent = "Sign in to view your tickets.";
     return;
   }
 
@@ -514,41 +577,45 @@ async function loadTickets() {
 
   if (error) return message("ticketStatus", error.message, true);
 
-  $("ticketList").innerHTML = (data || []).map(ticket => `
-    <div class="recommendation">
-      <strong>${escapeHTML(ticket.subject)}</strong>
-      <p>${escapeHTML(ticket.message)}</p>
-      <small>Status: ${escapeHTML(ticket.status)}</small>
-      <button class="text-button" onclick="loadReplies('${ticket.id}')">View Replies</button>
-      <div id="replies-${ticket.id}"></div>
-      <input class="input-field" id="reply-${ticket.id}" placeholder="Write a reply">
-      <button class="outline-button" onclick="sendReply('${ticket.id}')">Send Reply</button>
-    </div>
-  `).join("") || "No support tickets yet.";
+  if ($("ticketList")) {
+    $("ticketList").innerHTML = (data || []).map(ticket => `
+      <div class="recommendation">
+        <strong>${escapeHTML(ticket.subject)}</strong>
+        <p>${escapeHTML(ticket.message)}</p>
+        <small>Status: ${escapeHTML(ticket.status)}</small>
+        <button class="text-button" onclick="loadReplies('${ticket.id}')">View Replies</button>
+        <div id="replies-${ticket.id}"></div>
+        <input class="input-field" id="reply-${ticket.id}" placeholder="Write a reply">
+        <button class="outline-button" onclick="sendReply('${ticket.id}')">Send Reply</button>
+      </div>
+    `).join("") || "No support tickets yet.";
+  }
 }
 
-$("submitTicketButton").onclick = async () => {
-  if (!currentUser) return message("ticketStatus", "Sign in first.", true);
+if ($("submitTicketButton")) {
+  $("submitTicketButton").onclick = async () => {
+    if (!currentUser) return message("ticketStatus", "Sign in first.", true);
 
-  const subject = $("ticketSubject").value.trim();
-  const body = $("ticketMessage").value.trim();
+    const subject = $("ticketSubject").value.trim();
+    const body = $("ticketMessage").value.trim();
 
-  if (!subject || !body) return message("ticketStatus", "Fill in both fields.", true);
+    if (!subject || !body) return message("ticketStatus", "Fill in both fields.", true);
 
-  const { error } = await supabaseClient.from("support_tickets").insert({
-    user_id: currentUser.id,
-    subject,
-    message: body,
-    status: "open"
-  });
+    const { error } = await supabaseClient.from("support_tickets").insert({
+      user_id: currentUser.id,
+      subject,
+      message: body,
+      status: "open"
+    });
 
-  if (error) return message("ticketStatus", error.message, true);
+    if (error) return message("ticketStatus", error.message, true);
 
-  $("ticketSubject").value = "";
-  $("ticketMessage").value = "";
-  message("ticketStatus", "Ticket submitted.");
-  loadTickets();
-};
+    $("ticketSubject").value = "";
+    $("ticketMessage").value = "";
+    message("ticketStatus", "Ticket submitted.");
+    loadTickets();
+  };
+}
 
 async function loadReplies(ticketId) {
   const { data, error } = await supabaseClient
@@ -559,14 +626,17 @@ async function loadReplies(ticketId) {
 
   if (error) return alert(error.message);
 
-  $("replies-" + ticketId).innerHTML = (data || []).map(r =>
-    `<p>${escapeHTML(r.message)}</p>`
-  ).join("") || "No replies yet.";
+  const target = $("replies-" + ticketId);
+  if (target) {
+    target.innerHTML = (data || []).map(r =>
+      `<p>${escapeHTML(r.message)}</p>`
+    ).join("") || "No replies yet.";
+  }
 }
 
 async function sendReply(ticketId) {
   const input = $("reply-" + ticketId);
-  const text = input.value.trim();
+  const text = input?.value.trim();
   if (!text || !currentUser) return;
 
   const { error } = await supabaseClient.from("support_replies").insert({
@@ -587,7 +657,7 @@ async function sendReply(ticketId) {
 
 async function loadFriends() {
   if (!currentUser) {
-    $("friendResults").textContent = "Sign in to use friends.";
+    if ($("friendResults")) $("friendResults").textContent = "Sign in to use friends.";
     return;
   }
 
@@ -598,35 +668,37 @@ async function loadFriends() {
 
   if (error) return message("friendResults", error.message, true);
 
-  $("friendRequests").innerHTML = (data || []).map(r =>
-    `<div class="recommendation">
-      ${escapeHTML(r.status || "Friend request")}
-    </div>`
-  ).join("");
+  if ($("friendRequests")) {
+    $("friendRequests").innerHTML = (data || []).map(r =>
+      `<div class="recommendation">${escapeHTML(r.status || "Friend request")}</div>`
+    ).join("");
+  }
 }
 
-$("friendSearchButton").onclick = async () => {
-  if (!currentUser) return message("friendResults", "Sign in first.", true);
+if ($("friendSearchButton")) {
+  $("friendSearchButton").onclick = async () => {
+    if (!currentUser) return message("friendResults", "Sign in first.", true);
 
-  const term = $("friendSearch").value.trim();
-  if (!term) return;
+    const term = $("friendSearch").value.trim();
+    if (!term) return;
 
-  const { data, error } = await supabaseClient
-    .from("profiles")
-    .select("id,username,display_name")
-    .ilike("username", `%${term}%`)
-    .limit(20);
+    const { data, error } = await supabaseClient
+      .from("profiles")
+      .select("id,username,display_name")
+      .ilike("username", `%${term}%`)
+      .limit(20);
 
-  if (error) return message("friendResults", error.message, true);
+    if (error) return message("friendResults", error.message, true);
 
-  $("friendResults").innerHTML = (data || [])
-    .filter(p => p.id !== currentUser.id)
-    .map(p => `
-      <div class="recommendation">
-        <strong>${escapeHTML(p.display_name || p.username)}</strong>
-        <button class="outline-button" onclick="sendFriendRequest('${p.id}')">Add Friend</button>
-      </div>`).join("") || "No users found.";
-};
+    $("friendResults").innerHTML = (data || [])
+      .filter(p => p.id !== currentUser.id)
+      .map(p => `
+        <div class="recommendation">
+          <strong>${escapeHTML(p.display_name || p.username)}</strong>
+          <button class="outline-button" onclick="sendFriendRequest('${p.id}')">Add Friend</button>
+        </div>`).join("") || "No users found.";
+  };
+}
 
 async function sendFriendRequest(receiverId) {
   const { error } = await supabaseClient.from("friend_requests").insert({
@@ -660,35 +732,37 @@ async function loadAdmin() {
   const { count: restricted } = await supabaseClient
     .from("account_restrictions").select("*", { count: "exact", head: true });
 
-  $("adminTotalUsers").textContent = users ?? "—";
-  $("adminOpenTickets").textContent = tickets ?? "—";
-  $("adminRestrictedUsers").textContent = restricted ?? "—";
+  if ($("adminTotalUsers")) $("adminTotalUsers").textContent = users ?? "—";
+  if ($("adminOpenTickets")) $("adminOpenTickets").textContent = tickets ?? "—";
+  if ($("adminRestrictedUsers")) $("adminRestrictedUsers").textContent = restricted ?? "—";
 
   await loadAdminTickets();
   await loadRestrictionHistory();
 }
 
-$("adminUserSearchButton").onclick = async () => {
-  if (!["owner", "admin"].includes(currentProfile?.role)) {
-    return message("adminUserResults", "Only admins and owners can search users.", true);
-  }
+if ($("adminUserSearchButton")) {
+  $("adminUserSearchButton").onclick = async () => {
+    if (!["owner", "admin"].includes(currentProfile?.role)) {
+      return message("adminUserResults", "Only admins and owners can search users.", true);
+    }
 
-  const term = $("adminUserSearch").value.trim();
+    const term = $("adminUserSearch").value.trim();
 
-  const { data, error } = await supabaseClient
-    .from("profiles")
-    .select("id,username,display_name,role")
-    .ilike("username", `%${term}%`)
-    .limit(30);
+    const { data, error } = await supabaseClient
+      .from("profiles")
+      .select("id,username,display_name,role")
+      .ilike("username", `%${term}%`)
+      .limit(30);
 
-  if (error) return message("adminUserResults", error.message, true);
+    if (error) return message("adminUserResults", error.message, true);
 
-  $("adminUserResults").innerHTML = (data || []).map(user => `
-    <div class="recommendation">
-      <strong>${escapeHTML(user.display_name || user.username)}</strong>
-      <p>${escapeHTML(user.role)} · ${escapeHTML(user.id)}</p>
-    </div>`).join("") || "No users found.";
-};
+    $("adminUserResults").innerHTML = (data || []).map(user => `
+      <div class="recommendation">
+        <strong>${escapeHTML(user.display_name || user.username)}</strong>
+        <p>${escapeHTML(user.role)} · ${escapeHTML(user.id)}</p>
+      </div>`).join("") || "No users found.";
+  };
+}
 
 async function loadAdminTickets() {
   const { data, error } = await supabaseClient
@@ -699,17 +773,19 @@ async function loadAdminTickets() {
 
   if (error) return message("adminTicketList", error.message, true);
 
-  $("adminTicketList").innerHTML = (data || []).map(t => `
-    <div class="recommendation">
-      <strong>${escapeHTML(t.subject)}</strong>
-      <p>${escapeHTML(t.message)}</p>
-      <p>Status: ${escapeHTML(t.status)}</p>
-      <button class="outline-button" onclick="changeTicketStatus('${t.id}','open')">Open</button>
-      <button class="outline-button" onclick="changeTicketStatus('${t.id}','closed')">Close</button>
-      <input class="input-field" id="staff-reply-${t.id}" placeholder="Reply to ticket">
-      <button class="primary-button" onclick="staffReply('${t.id}')">Reply</button>
-    </div>
-  `).join("") || "No tickets.";
+  if ($("adminTicketList")) {
+    $("adminTicketList").innerHTML = (data || []).map(t => `
+      <div class="recommendation">
+        <strong>${escapeHTML(t.subject)}</strong>
+        <p>${escapeHTML(t.message)}</p>
+        <p>Status: ${escapeHTML(t.status)}</p>
+        <button class="outline-button" onclick="changeTicketStatus('${t.id}','open')">Open</button>
+        <button class="outline-button" onclick="changeTicketStatus('${t.id}','closed')">Close</button>
+        <input class="input-field" id="staff-reply-${t.id}" placeholder="Reply to ticket">
+        <button class="primary-button" onclick="staffReply('${t.id}')">Reply</button>
+      </div>
+    `).join("") || "No tickets.";
+  }
 }
 
 async function changeTicketStatus(id, status) {
@@ -726,7 +802,7 @@ async function staffReply(ticketId) {
   if (!["owner", "admin", "support"].includes(currentProfile?.role)) return;
 
   const input = $("staff-reply-" + ticketId);
-  const text = input.value.trim();
+  const text = input?.value.trim();
   if (!text) return;
 
   const { error } = await supabaseClient.from("support_replies").insert({
@@ -741,63 +817,71 @@ async function staffReply(ticketId) {
   alert("Reply sent.");
 }
 
-$("applyRestrictionButton").onclick = async () => {
-  if (!["owner", "admin"].includes(currentProfile?.role)) {
-    return message("restrictionStatus", "Only admins and owners can restrict accounts.", true);
-  }
+if ($("applyRestrictionButton")) {
+  $("applyRestrictionButton").onclick = async () => {
+    if (!["owner", "admin"].includes(currentProfile?.role)) {
+      return message("restrictionStatus", "Only admins and owners can restrict accounts.", true);
+    }
 
-  const userId = $("restrictionUserId").value.trim();
-  const action = $("restrictionAction").value;
-  const reason = $("restrictionReason").value.trim();
+    const userId = $("restrictionUserId").value.trim();
+    const action = $("restrictionAction").value;
+    const reason = $("restrictionReason").value.trim();
 
-  if (!userId) return message("restrictionStatus", "Enter the user ID.", true);
-  if (userId === currentUser.id) return message("restrictionStatus", "You cannot restrict your own account.", true);
-  if (!reason) return message("restrictionStatus", "Enter a reason.", true);
+    if (!userId) return message("restrictionStatus", "Enter the user ID.", true);
+    if (userId === currentUser.id) return message("restrictionStatus", "You cannot restrict your own account.", true);
+    if (!reason) return message("restrictionStatus", "Enter a reason.", true);
 
-  if (!confirm("Confirm this account action?")) return;
+    if (!confirm("Confirm this account action?")) return;
 
-  if (action === "unbanned") {
-    const { error } = await supabaseClient
-      .from("account_restrictions").delete().eq("user_id", userId);
+    if (action === "unbanned") {
+      const { error } = await supabaseClient
+        .from("account_restrictions").delete().eq("user_id", userId);
 
-    if (error) return message("restrictionStatus", error.message, true);
+      if (error) return message("restrictionStatus", error.message, true);
 
-    await supabaseClient.from("account_restriction_history").insert({
-      user_id: userId,
-      action: "unbanned",
-      reason,
-      performed_by: currentUser.id
-    });
-  } else {
-    const duration = Number($("restrictionDuration").value);
-    const until = action === "suspended" && duration > 0
-      ? new Date(Date.now() + duration * 3600000).toISOString()
-      : null;
+      const { error: historyError } = await supabaseClient
+        .from("account_restriction_history").insert({
+          user_id: userId,
+          action: "unbanned",
+          reason,
+          performed_by: currentUser.id
+        });
 
-    const { error } = await supabaseClient
-      .from("account_restrictions")
-      .upsert({
-        user_id: userId,
-        status: action,
-        reason,
-        suspended_until: until,
-        restricted_by: currentUser.id,
-        restricted_at: new Date().toISOString()
-      });
+      if (historyError) return message("restrictionStatus", historyError.message, true);
+    } else {
+      const duration = Number($("restrictionDuration").value);
+      const until = action === "suspended" && duration > 0
+        ? new Date(Date.now() + duration * 3600000).toISOString()
+        : null;
 
-    if (error) return message("restrictionStatus", error.message, true);
+      const { error } = await supabaseClient
+        .from("account_restrictions")
+        .upsert({
+          user_id: userId,
+          status: action,
+          reason,
+          suspended_until: until,
+          restricted_by: currentUser.id,
+          restricted_at: new Date().toISOString()
+        });
 
-    await supabaseClient.from("account_restriction_history").insert({
-      user_id: userId,
-      action,
-      reason,
-      performed_by: currentUser.id
-    });
-  }
+      if (error) return message("restrictionStatus", error.message, true);
 
-  message("restrictionStatus", "Action saved to the database.");
-  loadAdmin();
-};
+      const { error: historyError } = await supabaseClient
+        .from("account_restriction_history").insert({
+          user_id: userId,
+          action,
+          reason,
+          performed_by: currentUser.id
+        });
+
+      if (historyError) return message("restrictionStatus", historyError.message, true);
+    }
+
+    message("restrictionStatus", "Action saved to the database.");
+    loadAdmin();
+  };
+}
 
 async function loadRestrictionHistory() {
   if (!["owner", "admin"].includes(currentProfile?.role)) return;
@@ -810,12 +894,97 @@ async function loadRestrictionHistory() {
 
   if (error) return message("restrictionHistory", error.message, true);
 
-  $("restrictionHistory").innerHTML = (data || []).map(r =>
-    `<div class="recommendation">
-      ${escapeHTML(r.action)} — ${escapeHTML(r.reason)}
-      <p>${escapeHTML(r.user_id)}</p>
-    </div>`
-  ).join("") || "No restriction history.";
+  if ($("restrictionHistory")) {
+    $("restrictionHistory").innerHTML = (data || []).map(r =>
+      `<div class="recommendation">
+        ${escapeHTML(r.action)} — ${escapeHTML(r.reason)}
+        <p>${escapeHTML(r.user_id)}</p>
+      </div>`
+    ).join("") || "No restriction history.";
+  }
+}
+
+/* =========================================
+   MLBB ACCOUNT CONNECT
+   UI hooks are enabled only when secure
+   Worker endpoints are configured.
+========================================= */
+
+async function loadMLBBAccount() {
+  if (!currentUser || !$("mlbbAccountStatus")) return;
+
+  const { data, error } = await supabaseClient
+    .from("mlbb_accounts")
+    .select("mlbb_name,avatar_url,role_id,zone_id,linked_at")
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (error) {
+    message("mlbbAccountStatus", error.message, true);
+    return;
+  }
+
+  if (data) {
+    $("mlbbAccountStatus").innerHTML = `
+      <div class="recommendation">
+        ${data.avatar_url ? `<img src="${escapeHTML(data.avatar_url)}" alt="MLBB avatar" style="width:64px;height:64px;border-radius:50%">` : ""}
+        <strong>${escapeHTML(data.mlbb_name || "Linked MLBB account")}</strong>
+        <p>Player ID: ${escapeHTML(data.role_id)}</p>
+        <p>Zone ID: ${escapeHTML(data.zone_id)}</p>
+        <p>Linked: ${escapeHTML(new Date(data.linked_at).toLocaleDateString())}</p>
+        <button class="outline-button" id="disconnectMLBBButton">Disconnect account</button>
+      </div>
+    `;
+
+    $("disconnectMLBBButton").onclick = disconnectMLBBAccount;
+  } else {
+    $("mlbbAccountStatus").textContent = "No MLBB account linked.";
+  }
+}
+
+async function requestMLBBCode() {
+  if (!currentUser) {
+    return message("mlbbAccountStatus", "Sign in to RankPulse first.", true);
+  }
+
+  const roleId = $("mlbbRoleId")?.value.trim();
+  const zoneId = $("mlbbZoneId")?.value.trim();
+
+  if (!roleId || !zoneId) {
+    return message("mlbbAccountStatus", "Enter your MLBB Player ID and Zone ID.", true);
+  }
+
+  message("mlbbAccountStatus",
+    "Secure MLBB verification is not configured on the Worker yet.", true);
+
+  // Do not send MLBB credentials directly from the browser.
+  // The secure Worker routes must be deployed before enabling this.
+}
+
+async function verifyMLBBCode() {
+  message("mlbbAccountStatus",
+    "Verification is not enabled until secure Worker token storage is deployed.", true);
+}
+
+async function disconnectMLBBAccount() {
+  if (!currentUser || !confirm("Disconnect your MLBB account from RankPulse?")) return;
+
+  const { error } = await supabaseClient
+    .from("mlbb_accounts")
+    .delete()
+    .eq("user_id", currentUser.id);
+
+  if (error) return message("mlbbAccountStatus", error.message, true);
+
+  await loadMLBBAccount();
+}
+
+if ($("requestMLBBCodeButton")) {
+  $("requestMLBBCodeButton").onclick = requestMLBBCode;
+}
+
+if ($("verifyMLBBCodeButton")) {
+  $("verifyMLBBCodeButton").onclick = verifyMLBBCode;
 }
 
 /* =========================================
@@ -823,8 +992,10 @@ async function loadRestrictionHistory() {
 ========================================= */
 
 async function initialize() {
-  if (!supabaseClient || SUPABASE_KEY.includes("PASTE_")) {
-    message("authStatus", "Add your existing Supabase publishable key in script.js.", true);
+  if (!supabaseClient) {
+    message("authStatus", "Supabase library failed to load.", true);
+  } else if (SUPABASE_KEY.includes("PASTE_")) {
+    message("authStatus", "Add your Supabase publishable key.", true);
   } else {
     await refreshAuth();
 

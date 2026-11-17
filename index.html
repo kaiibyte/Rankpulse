@@ -1,0 +1,375 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080d13">
+  <meta name="description" content="RankPulse — MLBB stats, hero counters, draft analysis and rank tracking.">
+  <title>RankPulse — Draft Smarter. Climb Higher.</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#" data-page="overview">
+    <span class="brand-mark">R</span>
+    <span>RANK<span class="brand-blue">PULSE</span></span>
+  </a>
+
+  <nav class="top-links">
+    <button data-page="overview" class="top-link active">HOME</button>
+    <button data-page="heroes" class="top-link">HEROES</button>
+    <button data-page="meta" class="top-link">META TIER LIST</button>
+    <button data-page="movers" class="top-link">META MOVERS</button>
+    <button data-page="draft" class="top-link live-link">● LIVE DRAFT COUNTER</button>
+  </nav>
+
+  <button class="profile-button" data-page="settings">
+    <span class="online-dot"></span> MY ACCOUNT
+  </button>
+</header>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="sidebar-label">WORKSPACE</div>
+    <button class="side-link active" data-page="overview"><span>▦</span> Overview</button>
+    <button class="side-link" data-page="draft"><span>⚔</span> Draft Counter</button>
+    <button class="side-link" data-page="heroes"><span>◈</span> Heroes</button>
+    <button class="side-link" data-page="meta"><span>▤</span> Meta Tier List</button>
+    <button class="side-link" data-page="movers"><span>↗</span> Meta Movers</button>
+
+    <div class="sidebar-label second-label">MY ACCOUNT</div>
+    <button class="side-link" data-page="matches"><span>◷</span> Match History</button>
+    <button class="side-link" data-page="rank"><span>◎</span> Rank Target</button>
+    <button class="side-link" data-page="friends"><span>♧</span> Friends</button>
+
+    <div class="sidebar-label second-label">MORE</div>
+    <button class="side-link" data-page="support"><span>✉</span> Support Center</button>
+    <button class="side-link" data-page="settings"><span>⚙</span> Settings</button>
+
+    <div class="sidebar-bottom">
+      <div class="sidebar-logo">R</div>
+      <strong>RANKPULSE</strong>
+      <small>DRAFT SMARTER. CLIMB HIGHER.</small>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <!-- OVERVIEW -->
+    <section class="page active" id="page-overview">
+      <div class="eyebrow">YOUR MLBB COMMAND CENTER</div>
+      <h1 class="page-heading">WELCOME TO <span>RANKPULSE</span></h1>
+      <p class="page-description">
+        Track your performance, understand the meta, and make smarter draft decisions.
+      </p>
+
+      <div class="welcome-banner">
+        <div>
+          <div class="eyebrow">PLAYER PROFILE</div>
+          <h2>Connect your MLBB account</h2>
+          <p>Your rank, match history and personal statistics will appear here.</p>
+        </div>
+        <button class="primary-button" data-page="settings">CONNECT ACCOUNT</button>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <span>WIN RATE</span>
+          <strong id="dashboardWinRate">—</strong>
+          <small>Awaiting account data</small>
+        </div>
+        <div class="stat-card">
+          <span>TOTAL MATCHES</span>
+          <strong id="dashboardMatches">—</strong>
+          <small>Awaiting account data</small>
+        </div>
+        <div class="stat-card">
+          <span>AVERAGE KDA</span>
+          <strong id="dashboardKda">—</strong>
+          <small>Awaiting account data</small>
+        </div>
+        <div class="stat-card">
+          <span>CURRENT RANK</span>
+          <strong id="dashboardRank">—</strong>
+          <small>Awaiting account data</small>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading">
+          <h2>PERFORMANCE OVERVIEW</h2>
+          <select class="input-field compact-select">
+            <option>7 Days</option>
+            <option>30 Days</option>
+            <option>This Season</option>
+          </select>
+        </div>
+        <div class="empty-state">
+          <div class="empty-icon">▥</div>
+          <strong>Your performance chart will appear here</strong>
+          <p>Connect your MLBB account to view your statistics.</p>
+        </div>
+      </div>
+
+      <div class="two-column">
+        <div class="panel">
+          <div class="panel-heading"><h2>HERO PERFORMANCE</h2></div>
+          <div class="empty-state small-empty">
+            Your most-played heroes will appear here.
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-heading"><h2>RECENT MATCHES</h2></div>
+          <div class="empty-state small-empty">
+            Your recent matches will appear here.
+          </div>
+          <button class="text-button" data-page="matches">VIEW MATCH HISTORY →</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading">
+          <h2>RECOMMENDED HEROES</h2>
+          <button class="text-button" data-page="heroes">VIEW ALL →</button>
+        </div>
+        <div class="empty-state small-empty">
+          Connect your account to receive personal hero recommendations.
+        </div>
+      </div>
+    </section>
+
+    <!-- DRAFT COUNTER -->
+    <section class="page" id="page-draft">
+      <div class="eyebrow">LIVE DRAFT TOOL</div>
+      <h1 class="page-heading blue-heading">LIVE DRAFT COUNTER</h1>
+      <p class="page-description centered-description">
+        Pick your lane, add heroes in any order as they get locked in, and get instant pick
+        recommendations based on lane counters, synergy and team composition.
+      </p>
+
+      <details class="panel instructions">
+        <summary>ⓘ &nbsp; HOW TO USE THIS TOOL</summary>
+        <div class="instruction-content">
+          <p><b>Step 1:</b> Select your lane and pick timing.</p>
+          <p><b>Step 2:</b> Add banned heroes and locked-in picks from both teams.</p>
+          <p><b>Step 3:</b> Review recommended heroes, statistics and explanations.</p>
+          <p><b>Step 4:</b> Add your selected hero to your team.</p>
+        </div>
+      </details>
+
+      <div class="panel lane-panel">
+        <h2 class="step-heading">STEP 1: SELECT YOUR LANE</h2>
+        <div class="choice-row" id="laneChoices">
+          <button class="choice selected-orange" data-lane="Gold">GOLD</button>
+          <button class="choice" data-lane="Mid">MID</button>
+          <button class="choice" data-lane="Jungle">JUNGLE</button>
+          <button class="choice" data-lane="EXP">EXP</button>
+          <button class="choice" data-lane="Roam">ROAM</button>
+        </div>
+
+        <div class="pick-label">WHEN IS YOUR PICK TURN? <span>(optional, changes the strategy)</span></div>
+        <div class="choice-row" id="timingChoices">
+          <button class="choice" data-timing="Early">⌛ EARLY PICK</button>
+          <button class="choice" data-timing="Middle">⌛ MIDDLE</button>
+          <button class="choice selected-blue" data-timing="Last">⌛ LAST PICK</button>
+        </div>
+
+        <label class="checkbox-card">
+          <input type="checkbox" id="laneOnly">
+          <span>
+            <b>Lane matchups only</b>
+            <small>Score picks against enemies who play your lane and ignore the rest of their team.</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading">
+          <h2>BANS <span class="muted">(OPTIONAL)</span></h2>
+          <span class="muted" id="banCount">0 / 10</span>
+        </div>
+        <p class="panel-description">
+          Add banned heroes from your match. Banned heroes won't appear in recommendations.
+        </p>
+        <div class="ban-grid" id="banSlots"></div>
+        <button class="outline-button" id="clearBans">CLEAR BANS</button>
+      </div>
+
+      <div class="team-grid">
+        <div class="team-panel ally-panel">
+          <div class="team-heading ally-heading">YOUR TEAM</div>
+          <div class="team-slots" id="allySlots"></div>
+        </div>
+        <div class="team-panel enemy-panel">
+          <div class="team-heading enemy-heading">ENEMY TEAM</div>
+          <div class="team-slots" id="enemySlots"></div>
+        </div>
+      </div>
+
+      <div class="panel hero-selector">
+        <div class="panel-heading">
+          <h2>HERO SELECTOR</h2>
+          <span class="muted" id="selectionHint">Select a team slot first</span>
+        </div>
+        <input class="input-field search-input" id="heroSearch" placeholder="Search for a hero...">
+        <div class="hero-grid" id="heroPicker"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-heading">
+          <h2>TOP PICK RECOMMENDATIONS</h2>
+          <span class="live-tag">DRAFT ANALYSIS</span>
+        </div>
+        <p class="panel-description">
+          Recommendations are evaluated against your current draft. Each suggestion explains its strengths.
+        </p>
+        <div id="recommendations">
+          <div class="empty-state small-empty">
+            Add heroes to the draft to generate recommendations.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HEROES -->
+    <section class="page" id="page-heroes">
+      <div class="eyebrow">MLBB HERO DATABASE</div>
+      <h1 class="page-heading">HERO <span>DATABASE</span></h1>
+      <p class="page-description">Search heroes and explore their statistics and matchups.</p>
+      <input class="input-field search-input" id="databaseSearch" placeholder="Search heroes...">
+      <div class="hero-grid database-grid" id="databaseHeroes"></div>
+    </section>
+
+    <!-- META -->
+    <section class="page" id="page-meta">
+      <div class="eyebrow">CURRENT META</div>
+      <h1 class="page-heading">META <span>TIER LIST</span></h1>
+      <p class="page-description">Explore hero rankings using available MLBB ranking statistics.</p>
+      <div class="panel">
+        <div class="filter-row">
+          <select class="input-field" id="rankFilter">
+            <option value="all">All Ranks</option>
+            <option value="mythic">Mythic</option>
+            <option value="mythical_honor">Mythical Honor</option>
+            <option value="mythical_glory">Mythical Glory</option>
+          </select>
+          <select class="input-field" id="sortFilter">
+            <option value="win_rate">Win Rate</option>
+            <option value="pick_rate">Pick Rate</option>
+            <option value="ban_rate">Ban Rate</option>
+          </select>
+          <button class="primary-button" id="refreshStats">REFRESH DATA</button>
+        </div>
+        <div id="metaStatus" class="status-message">Waiting for hero statistics...</div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>HERO</th><th>WIN RATE</th><th>PICK RATE</th><th>BAN RATE</th></tr>
+            </thead>
+            <tbody id="metaTable">
+              <tr><td colspan="4" class="muted">No statistics loaded yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- META MOVERS -->
+    <section class="page" id="page-movers">
+      <div class="eyebrow">META CHANGES</div>
+      <h1 class="page-heading">META <span>MOVERS</span></h1>
+      <p class="page-description">Discover which heroes are rising or falling in the current meta.</p>
+      <div class="two-column">
+        <div class="panel"><h2>↗ RISING HEROES</h2><div class="empty-state small-empty">Movement data will appear here when historical statistics are available.</div></div>
+        <div class="panel"><h2>↘ FALLING HEROES</h2><div class="empty-state small-empty">Movement data will appear here when historical statistics are available.</div></div>
+      </div>
+    </section>
+
+    <!-- MATCHES -->
+    <section class="page" id="page-matches">
+      <div class="eyebrow">YOUR RECORD</div>
+      <h1 class="page-heading">MATCH <span>HISTORY</span></h1>
+      <p class="page-description">Review your match results, heroes, KDA and performance.</p>
+      <div class="panel">
+        <div class="empty-state">
+          <div class="empty-icon">◷</div>
+          <strong>No match history loaded</strong>
+          <p>Connect your MLBB account when the secure account integration is ready.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- RANK -->
+    <section class="page" id="page-rank">
+      <div class="eyebrow">YOUR NEXT MILESTONE</div>
+      <h1 class="page-heading">RANK <span>TARGET</span></h1>
+      <p class="page-description">Set a goal and track your progress toward your desired rank.</p>
+      <div class="panel narrow-panel">
+        <label class="field-label">TARGET RANK</label>
+        <select class="input-field" id="targetRank">
+          <option value="">Choose your target rank</option>
+          <option>Epic</option><option>Legend</option><option>Mythic</option>
+          <option>Mythical Honor</option><option>Mythical Glory</option>
+          <option>Mythical Immortal</option>
+        </select>
+        <button class="primary-button full-button" id="saveRank">SAVE TARGET</button>
+        <div id="rankMessage" class="status-message"></div>
+      </div>
+    </section>
+
+    <!-- FRIENDS -->
+    <section class="page" id="page-friends">
+      <div class="eyebrow">PLAY TOGETHER</div>
+      <h1 class="page-heading">YOUR <span>FRIENDS</span></h1>
+      <p class="page-description">Find RankPulse users and compare your performance.</p>
+      <div class="panel narrow-panel">
+        <input class="input-field" placeholder="Search RankPulse username">
+        <button class="primary-button full-button">SEARCH PLAYERS</button>
+        <div class="empty-state small-empty">Your friends and leaderboard will appear here.</div>
+      </div>
+    </section>
+
+    <!-- SUPPORT -->
+    <section class="page" id="page-support">
+      <div class="eyebrow">WE'RE HERE TO HELP</div>
+      <h1 class="page-heading">SUPPORT <span>CENTER</span></h1>
+      <p class="page-description">Get help, report bugs or suggest features for RankPulse.</p>
+      <div class="two-column">
+        <div class="panel"><h2>SUPPORT TICKET</h2><p class="panel-description">Ask for help with your account or the website.</p><button class="outline-button">OPEN TICKET</button></div>
+        <div class="panel"><h2>REPORT A BUG</h2><p class="panel-description">Tell us about something that isn't working.</p><button class="outline-button">REPORT BUG</button></div>
+        <div class="panel"><h2>SUGGEST A FEATURE</h2><p class="panel-description">Help shape future RankPulse updates.</p><button class="outline-button">SEND SUGGESTION</button></div>
+        <div class="panel"><h2>FREQUENTLY ASKED QUESTIONS</h2><p class="panel-description">Answers about accounts, stats and draft tools.</p><button class="outline-button">VIEW FAQ</button></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="page" id="page-settings">
+      <div class="eyebrow">ACCOUNT & PREFERENCES</div>
+      <h1 class="page-heading">ACCOUNT <span>SETTINGS</span></h1>
+      <div class="panel">
+        <h2>RANKPULSE ACCOUNT</h2>
+        <p class="panel-description">Sign-in and cloud profiles will be connected through Supabase.</p>
+        <div class="notice">Authentication providers must be configured in your Supabase project before sign-in is available.</div>
+      </div>
+      <div class="panel">
+        <h2>MLBB ACCOUNT CONNECTION</h2>
+        <p class="panel-description">Connect one MLBB account to your RankPulse account. You can disconnect and reconnect later.</p>
+        <div class="notice">The secure account connection requires a backend integration. Never put MLBB verification codes or session tokens in this page.</div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>RANKPULSE</span> · DRAFT SMARTER. CLIMB HIGHER.
+      <span class="footer-right">UNOFFICIAL MLBB COMPANION</span>
+    </footer>
+  </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

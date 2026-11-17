@@ -1,725 +1,223 @@
-
-/* ==========================================
-   RANKPULSE — COMPLETE JAVASCRIPT
-========================================== */
-
-/* SUPABASE */
+/* =========================================
+   RANKPULSE — MAIN JAVASCRIPT
+========================================= */
 
 const SUPABASE_URL = "https://nwuyuncvtaliryuoqrap.supabase.co";
-const SUPABASE_KEY = "sb_publishable_qTkztL9y-_W4I-x99J0REQ_Y0TDwzzM";
-
+const SUPABASE_KEY = "PASTE_YOUR_EXISTING_PUBLISHABLE_KEY_HERE";
 const API_BASE = "https://rankpulseapi.kaiiiiiiii6767.workers.dev/api";
-
-let supabaseClient = null;
-
-if (window.supabase?.createClient) {
-  supabaseClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_KEY
-  );
-}
-
-/* HELPERS */
 
 const $ = id => document.getElementById(id);
 
-function on(id, event, callback) {
-  const element = $(id);
-  if (element) element.addEventListener(event, callback);
-}
+const supabaseClient = window.supabase?.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
 
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, c => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  })[c]);
-}
+let currentUser = null;
+let currentProfile = null;
+let matches = JSON.parse(localStorage.getItem("rankpulse_matches") || "[]");
+let heroes = [];
+let allyPicks = Array(5).fill(null);
+let enemyPicks = Array(5).fill(null);
+let bans = Array(10).fill(null);
 
-function setMessage(id, message) {
-  const element = $(id);
-  if (element) element.textContent = message;
-}
-
-function getInitial(name) {
-  return String(name || "?").charAt(0).toUpperCase();
-}
-
-/* HERO DATABASE */
-
-const HEROES = [
-  "Aamon","Aldous","Alice","Alpha","Angela","Argus","Arlott",
-  "Atlas","Aulus","Aurora","Badang","Balmond","Bane","Barats",
-  "Baxia","Beatrix","Belerick","Benedetta","Brody","Bruno",
-  "Carmilla","Cecilion","Chang'e","Chip","Chou","Cici",
-  "Claude","Clint","Cyclops","Diggie","Dyrroth","Edith",
-  "Esmeralda","Estes","Fanny","Faramis","Floryn","Franco",
-  "Fredrinn","Freya","Gatotkaca","Gloo","Gord","Granger",
-  "Grock","Guinevere","Gusion","Hanabi","Hanzo","Harith",
-  "Harley","Hayabusa","Helcurt","Hilda","Hylos","Irithel",
-  "Ixia","Jawhead","Johnson","Joy","Julian","Kadita",
-  "Kagura","Kaja","Karina","Karrie","Khaleed","Kimmy",
-  "Lancelot","Lapu-Lapu","Layla","Leomord","Lesley","Ling",
-  "Lolita","Lunox","Luo Yi","Lylia","Marcel","Martis",
-  "Masha","Mathilda","Melissa","Minotaur","Minsitthar","Miya",
-  "Moskov","Nana","Natalia","Natan","Novaria","Odette",
-  "Paquito","Pharsa","Popol and Kupa","Rafaela","Roger",
-  "Ruby","Saber","Selena","Silvanna","Sun","Tigreal",
-  "Uranus","Vale","Valentina","Valir","Vexana","Wanwan",
-  "X.Borg","Xavier","Yi Sun-shin","Yin","Yu Zhong","Yve",
-  "Zhask","Zilong"
+const RANKS = [
+  "Warrior", "Elite", "Master", "Grandmaster", "Epic",
+  "Legend", "Mythic", "Mythical Honor",
+  "Mythical Glory", "Mythical Immortal"
 ];
 
-/* NAVIGATION */
-
-function navigateTo(pageName) {
-  document.querySelectorAll(".page").forEach(page => {
-    page.classList.remove("active");
-  });
-
-  const page = $("page-" + pageName);
-  if (!page) return;
-
-  page.classList.add("active");
-
-  document.querySelectorAll("[data-page]").forEach(button => {
-    button.classList.toggle(
-      "active",
-      button.dataset.page === pageName
-    );
-  });
-
-  const title = $("topbarTitle");
-  if (title) title.textContent = pageName.toUpperCase();
-
-  if (pageName === "draft") updateRecommendations();
-  if (pageName === "heroes") renderHeroDatabase();
-  if (pageName === "tierlist") renderTierList();
-  if (pageName === "movers") renderMetaMovers();
-  if (pageName === "matches") renderMatches();
-  if (pageName === "rank") renderRankTarget();
-
-  window.scrollTo({ top: 0, behavior: "smooth" });
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;",
+    '"': "&quot;", "'": "&#39;"
+  })[char]);
 }
 
-document.querySelectorAll("[data-page]").forEach(button => {
-  button.addEventListener("click", () => {
-    navigateTo(button.dataset.page);
-  });
-});
-
-/* HERO STATISTICS */
-
-let heroStats = [];
-let isLoadingStats = false;
-
-function getFirstValue(object, keys) {
-  for (const key of keys) {
-    const value = object?.[key];
-    if (value !== undefined && value !== null && value !== "") {
-      return value;
-    }
-  }
-  return null;
-}
-
-function normalizeHeroRecord(record) {
-  const name = getFirstValue(record, [
-    "hero_name", "name", "hero", "heroName", "title"
-  ]);
-
-  if (!name) return null;
-
-  return {
-    name: String(name),
-    image: getFirstValue(record, [
-      "avatar", "hero_avatar", "icon", "cover",
-      "image", "image_url"
-    ]),
-    winRate: getFirstValue(record, [
-      "win_rate", "winRate", "winRateStr"
-    ]),
-    pickRate: getFirstValue(record, [
-      "pick_rate", "pickRate", "pickRateStr"
-    ]),
-    banRate: getFirstValue(record, [
-      "ban_rate", "banRate", "banRateStr"
-    ])
-  };
-}
-
-function findStat(name) {
-  return heroStats.find(hero =>
-    hero.name.toLowerCase() === name.toLowerCase()
-  );
-}
-
-function getRate(value) {
-  if (value === undefined || value === null || value === "") {
-    return "—";
-  }
-
-  const number = Number(String(value).replace("%", ""));
-  return Number.isFinite(number) ? number.toFixed(2) + "%" : "—";
-}
-
-function getHeroPortrait(name) {
-  const hero = findStat(name);
-
-  if (!hero?.image) {
-    return `<span>${escapeHTML(getInitial(name))}</span>`;
-  }
-
-  return `<img src="${escapeHTML(hero.image)}"
-    alt="${escapeHTML(name)}"
-    loading="lazy"
-    onerror="this.style.display='none'">`;
-}
-
-async function loadHeroStats() {
-  if (isLoadingStats) return;
-
-  isLoadingStats = true;
-
-  const rank = $("heroRankFilter")?.value || "all";
-  const sort = $("heroSort")?.value || "win_rate";
-
-  try {
-    const url = `${API_BASE}/heroes/rank?days=7&rank=${encodeURIComponent(rank)}&sort_field=${encodeURIComponent(sort)}&size=200`;
-
-    const response = await fetch(url);
-
-    if (!response.ok) {
-      throw new Error("API error: " + response.status);
-    }
-
-    const result = await response.json();
-
-    const records =
-      result?.result?.data?.records ??
-      result?.data?.records ??
-      result?.data ??
-      [];
-
-    if (!Array.isArray(records)) {
-      throw new Error("Unexpected API response.");
-    }
-
-    heroStats = records.map(normalizeHeroRecord).filter(Boolean);
-
-    renderHeroDatabase();
-    renderTierList();
-    renderMetaMovers();
-    updateRecommendations();
-
-  } catch (error) {
-    console.error("RankPulse API:", error);
-
-    if (!heroStats.length) {
-      const grid = $("heroGrid");
-      if (grid) {
-        grid.innerHTML = `<div class="empty-state">
-          Hero statistics could not be loaded. Try refreshing.
-        </div>`;
-      }
-
-      setMessage("tierListContent", "Hero statistics unavailable.");
-      setMessage("metaMovers", "Hero statistics unavailable.");
-    }
-  } finally {
-    isLoadingStats = false;
-  }
-}
-
-/* HERO DATABASE PAGE */
-
-function renderHeroDatabase() {
-  const container = $("heroGrid");
-  if (!container) return;
-
-  const query = ($("heroSearch")?.value || "").toLowerCase();
-
-  let results = heroStats.length
-    ? heroStats
-    : HEROES.map(name => ({ name }));
-
-  results = results.filter(hero =>
-    hero.name.toLowerCase().includes(query)
-  );
-
-  const sort = $("heroSort")?.value || "win_rate";
-
-  const field = sort === "pick_rate"
-    ? "pickRate"
-    : sort === "ban_rate"
-      ? "banRate"
-      : "winRate";
-
-  results.sort((a, b) =>
-    (parseFloat(b[field]) || 0) - (parseFloat(a[field]) || 0)
-  );
-
-  if (!results.length) {
-    container.innerHTML = `<div class="empty-state">No heroes found.</div>`;
-    return;
-  }
-
-  container.innerHTML = results.map(hero => `
-    <div class="hero-card">
-      <div class="hero-portrait">
-        ${getHeroPortrait(hero.name)}
-      </div>
-      <strong>${escapeHTML(hero.name)}</strong>
-      <small>Win: ${getRate(hero.winRate)}</small>
-      <small>Pick: ${getRate(hero.pickRate)}</small>
-      <small>Ban: ${getRate(hero.banRate)}</small>
-    </div>
-  `).join("");
-}
-
-on("heroSearch", "input", renderHeroDatabase);
-on("heroRankFilter", "change", loadHeroStats);
-on("heroSort", "change", () => {
-  renderHeroDatabase();
-  if (heroStats.length) {
-    renderTierList();
-    renderMetaMovers();
-  } else {
-    loadHeroStats();
-  }
-});
-
-/* TIER LIST */
-
-function renderTierList() {
-  const container = $("tierListContent");
-  if (!container) return;
-
-  if (!heroStats.length) {
-    container.textContent = "Loading hero statistics...";
-    return;
-  }
-
-  const sorted = [...heroStats].sort(
-    (a, b) => (parseFloat(b.winRate) || 0) -
-              (parseFloat(a.winRate) || 0)
-  );
-
-  container.innerHTML = sorted.slice(0, 30).map((hero, index) => `
-    <div class="recommendation">
-      <strong>#${index + 1} ${escapeHTML(hero.name)}</strong>
-      <span>Win rate: ${getRate(hero.winRate)}</span>
-      <span>Pick rate: ${getRate(hero.pickRate)}</span>
-      <span>Ban rate: ${getRate(hero.banRate)}</span>
-    </div>
-  `).join("");
-}
-
-/* META MOVERS */
-
-function renderMetaMovers() {
-  const container = $("metaMovers");
-  if (!container) return;
-
-  if (!heroStats.length) {
-    container.textContent = "Loading hero data...";
-    return;
-  }
-
-  const sorted = [...heroStats].sort(
-    (a, b) => (parseFloat(b.winRate) || 0) -
-              (parseFloat(a.winRate) || 0)
-  );
-
-  container.innerHTML = sorted.slice(0, 10).map((hero, index) => `
-    <div class="recommendation">
-      <strong>${index + 1}. ${escapeHTML(hero.name)}</strong>
-      <span>${getRate(hero.winRate)} win rate</span>
-    </div>
-  `).join("");
-}
-
-/* DRAFT COUNTER */
-
-let selectedLane = "Gold";
-let selectedTiming = "Last";
-let selectedTeam = "ally";
-let selectedSlot = 0;
-
-let allyPicks = [null, null, null, null, null];
-let enemyPicks = [null, null, null, null, null];
-let bans = [];
-
-const LANE_RECOMMENDATIONS = {
-  Gold: ["Karrie","Claude","Brody","Beatrix","Bruno","Ixia","Melissa","Natan"],
-  Mid: ["Lylia","Luo Yi","Pharsa","Valentina","Xavier","Novaria","Cecilion"],
-  Jungle: ["Fredrinn","Joy","Nolan","Julian","Hayabusa","Ling","Barats"],
-  EXP: ["Yu Zhong","Arlott","Terizla","Edith","Ruby","X.Borg","Cici"],
-  Roam: ["Tigreal","Mathilda","Khufra","Minotaur","Lolita","Diggie","Chou"]
-};
-
-const COUNTER_HINTS = {
-  Fanny: ["Khufra","Kaja","Franco","Saber"],
-  Ling: ["Khufra","Kaja","Franco"],
-  Hayabusa: ["Khufra","Franco","Saber"],
-  Aldous: ["Diggie","Karrie","Valir"],
-  Fredrinn: ["Karrie","Lunox","Valir"],
-  Esmeralda: ["Dyrroth","Karrie","Baxia"],
-  Estes: ["Luo Yi","Carmilla","Baxia"],
-  Diggie: ["Kaja","Saber","Natalia"],
-  Wanwan: ["Franco","Kaja","Saber"],
-  Claude: ["Kaja","Saber","Franco"],
-  Ixia: ["Lolita","Atlas","Chou"],
-  Angela: ["Baxia","Luo Yi","Valir"]
-};
-
-function renderTeamSlots() {
-  renderOneTeam("ally", allyPicks, "Your pick");
-  renderOneTeam("enemy", enemyPicks, "Enemy pick");
-}
-
-function renderOneTeam(team, picks, label) {
-  const container = $(team === "ally" ? "myTeamSlots" : "enemyTeamSlots");
-  if (!container) return;
-
-  container.innerHTML = picks.map((hero, index) => `
-    <button class="team-slot" data-team="${team}" data-slot="${index}" type="button">
-      <span class="slot-avatar">
-        ${hero ? getHeroPortrait(hero) : "+"}
-      </span>
-      <span>
-        <strong>${hero ? escapeHTML(hero) : `${label} ${index + 1}`}</strong>
-        <small>${hero ? "Tap to remove" : "Select a hero"}</small>
-      </span>
-    </button>
-  `).join("");
-
-  container.querySelectorAll("[data-slot]").forEach(button => {
-    button.addEventListener("click", () => {
-      const index = Number(button.dataset.slot);
-      const picksArray = team === "ally" ? allyPicks : enemyPicks;
-
-      if (picksArray[index]) {
-        picksArray[index] = null;
-        renderTeamSlots();
-        renderBans();
-        updateRecommendations();
-        return;
-      }
-
-      selectedTeam = team;
-      selectedSlot = index;
-      openHeroPicker();
-    });
-  });
-}
-
-function openHeroPicker() {
-  const existing = $("rankpulsePicker");
-  if (existing) existing.remove();
-
-  const modal = document.createElement("div");
-  modal.id = "rankpulsePicker";
-  modal.style.cssText = `
-    position:fixed;inset:0;z-index:9999;
-    background:rgba(0,0,0,.85);padding:20px;
-    display:flex;align-items:center;justify-content:center;
-  `;
-
-  modal.innerHTML = `
-    <div style="background:#101923;border:1px solid #263747;
-      border-radius:14px;padding:18px;width:100%;max-width:650px;
-      max-height:85vh;overflow:auto;color:white">
-      <h2>Select a hero</h2>
-      <input id="pickerSearch" class="input-field"
-        placeholder="Search heroes...">
-      <div id="pickerGrid" class="hero-grid"></div>
-      <button id="closePicker" class="outline-button full-button"
-        type="button">CLOSE</button>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  const render = (query = "") => {
-    const grid = $("pickerGrid");
-    if (!grid) return;
-
-    const used = [...allyPicks, ...enemyPicks, ...bans].filter(Boolean);
-
-    const available = HEROES.filter(hero =>
-      hero.toLowerCase().includes(query.toLowerCase()) &&
-      !used.includes(hero)
-    );
-
-    grid.innerHTML = available.map(hero => `
-      <button class="hero-card" data-picker-hero="${escapeHTML(hero)}"
-        type="button">
-        <div class="hero-portrait">${getHeroPortrait(hero)}</div>
-        <strong>${escapeHTML(hero)}</strong>
-      </button>
-    `).join("");
-
-    grid.querySelectorAll("[data-picker-hero]").forEach(button => {
-      button.addEventListener("click", () => {
-        addHero(button.dataset.pickerHero);
-        modal.remove();
-      });
-    });
-  };
-
-  $("pickerSearch").addEventListener("input", event => {
-    render(event.target.value);
-  });
-
-  $("closePicker").addEventListener("click", () => modal.remove());
-
-  modal.addEventListener("click", event => {
-    if (event.target === modal) modal.remove();
-  });
-
-  render();
-}
-
-function addHero(name) {
-  const used = [...allyPicks, ...enemyPicks, ...bans];
-
-  if (used.includes(name)) return;
-
-  if (selectedTeam === "ban") {
-    if (bans.length >= 10) return;
-    bans.push(name);
-  } else {
-    const picks = selectedTeam === "ally" ? allyPicks : enemyPicks;
-    if (picks[selectedSlot]) return;
-    picks[selectedSlot] = name;
-  }
-
-  renderTeamSlots();
-  renderBans();
-  updateRecommendations();
-}
-
-function renderBans() {
-  const container = $("banSlots");
-  if (!container) return;
-
-  container.innerHTML = Array.from({ length: 10 }, (_, index) => {
-    const hero = bans[index];
-
-    return `
-      <button class="ban-slot" data-ban="${index}" type="button">
-        ${hero ? escapeHTML(hero) + " ×" : `BAN ${index + 1} +`}
-      </button>
-    `;
-  }).join("");
-
-  container.querySelectorAll("[data-ban]").forEach(button => {
-    button.addEventListener("click", () => {
-      const index = Number(button.dataset.ban);
-
-      if (bans[index]) {
-        bans.splice(index, 1);
-        renderBans();
-        updateRecommendations();
-      } else if (bans.length < 10) {
-        selectedTeam = "ban";
-        openHeroPicker();
-      }
-    });
-  });
-}
-
-function calculateRecommendations() {
-  const used = [...allyPicks, ...enemyPicks, ...bans].filter(Boolean);
-  const enemies = enemyPicks.filter(Boolean);
-  const laneOnly = $("laneOnly")?.checked || false;
-
-  const candidates = laneOnly
-    ? (LANE_RECOMMENDATIONS[selectedLane] || []).filter(h => !used.includes(h))
-    : HEROES.filter(h => !used.includes(h));
-
-  return candidates.map(hero => {
-    let score = 60;
-    const reasons = [];
-
-    if ((LANE_RECOMMENDATIONS[selectedLane] || []).includes(hero)) {
-      score += 10;
-      reasons.push(`Fits ${selectedLane} lane.`);
-    }
-
-    enemies.forEach(enemy => {
-      if (COUNTER_HINTS[enemy]?.includes(hero)) {
-        score += 13;
-        reasons.push(`Can help counter ${enemy}.`);
-      }
-    });
-
-    if (selectedTiming === "Early") {
-      reasons.push("Consider a flexible early pick.");
-    }
-
-    if (selectedTiming === "Last") {
-      score += 3;
-      reasons.push("Use the full enemy draft to refine your last pick.");
-    }
-
-    if (!reasons.length) {
-      reasons.push("Check team composition and matchup before picking.");
-    }
-
-    return {
-      hero,
-      score: Math.min(score, 99),
-      reason: reasons.slice(0, 3).join(" ")
-    };
-  }).sort((a, b) => b.score - a.score).slice(0, 5);
-}
-
-function updateRecommendations() {
-  const container = $("recommendations");
-  if (!container) return;
-
-  const results = calculateRecommendations();
-
-  if (!results.length) {
-    container.textContent = "No recommendations available.";
-    return;
-  }
-
-  container.innerHTML = results.map(item => {
-    const stats = findStat(item.hero);
-
-    return `
-      <div class="recommendation">
-        <div class="hero-portrait">${getHeroPortrait(item.hero)}</div>
-        <div class="recommendation-info">
-          <strong>${escapeHTML(item.hero)}</strong>
-          <p>${escapeHTML(item.reason)}</p>
-          <small>Win rate: ${stats ? getRate(stats.winRate) : "Unavailable"}</small>
-        </div>
-        <div class="recommendation-score">${item.score}</div>
-        <button class="add-pick" data-add="${escapeHTML(item.hero)}"
-          type="button">ADD TO MY TEAM</button>
-      </div>
-    `;
-  }).join("");
-
-  container.querySelectorAll("[data-add]").forEach(button => {
-    button.addEventListener("click", () => {
-      const slot = allyPicks.findIndex(hero => !hero);
-
-      if (slot === -1) {
-        alert("Your team already has five heroes.");
-        return;
-      }
-
-      selectedTeam = "ally";
-      selectedSlot = slot;
-      addHero(button.dataset.add);
-    });
-  });
-}
-
-on("draftLane", "change", event => {
-  selectedLane = event.target.value;
-  updateRecommendations();
-});
-
-on("pickOrder", "change", event => {
-  selectedTiming = event.target.value;
-  updateRecommendations();
-});
-
-on("laneOnly", "change", updateRecommendations);
-
-/* MATCH HISTORY — LOCAL STORAGE */
-
-let matches = [];
-
-try {
-  matches = JSON.parse(localStorage.getItem("rankpulse_matches") || "[]");
-  if (!Array.isArray(matches)) matches = [];
-} catch {
-  matches = [];
+function message(id, text, error = false) {
+  const element = $(id);
+  if (!element) return;
+  element.textContent = text;
+  element.style.color = error ? "#ff5364" : "#08c5f5";
 }
 
 function saveMatches() {
   localStorage.setItem("rankpulse_matches", JSON.stringify(matches));
   renderMatches();
+  updateDashboard();
 }
 
-function renderMatches() {
-  const list = $("matchHistoryList");
-  const recent = $("recentMatches");
+function navigateTo(page) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
 
-  const html = matches.length
-    ? matches.map((match, index) => `
-      <div class="recommendation">
-        <strong>${escapeHTML(match.hero)}</strong>
-        <span>${match.result === "win" ? "Victory" : "Defeat"}</span>
-        <span>${match.kills}/${match.deaths}/${match.assists}</span>
-        <span>${escapeHTML(match.mode)}</span>
-        <button class="text-button" data-delete-match="${index}"
-          type="button">DELETE</button>
-      </div>
-    `).join("")
-    : `<div class="empty-state">No matches recorded yet.</div>`;
+  $("page-" + page)?.classList.add("active");
+  document.querySelector(`[data-page="${page}"]`)?.classList.add("active");
 
-  if (list) list.innerHTML = html;
-  if (recent) recent.innerHTML = html;
+  const button = document.querySelector(`[data-page="${page}"]`);
+  $("topbarTitle").textContent = button?.textContent || page;
 
-  document.querySelectorAll("[data-delete-match]").forEach(button => {
-    button.addEventListener("click", () => {
-      matches.splice(Number(button.dataset.deleteMatch), 1);
-      saveMatches();
-      updateOverview();
-    });
+  if (page === "heroes" || page === "tierlist" || page === "movers") loadHeroes();
+  if (page === "support") loadTickets();
+  if (page === "friends") loadFriends();
+  if (page === "admin") loadAdmin();
+}
+
+document.querySelectorAll("[data-page]").forEach(button => {
+  button.addEventListener("click", () => navigateTo(button.dataset.page));
+});
+
+/* =========================================
+   AUTHENTICATION
+========================================= */
+
+async function refreshAuth() {
+  if (!supabaseClient) return;
+
+  const { data } = await supabaseClient.auth.getSession();
+  currentUser = data.session?.user || null;
+
+  if (currentUser) {
+    const { data: profile } = await supabaseClient
+      .from("profiles")
+      .select("*")
+      .eq("id", currentUser.id)
+      .maybeSingle();
+
+    currentProfile = profile;
+
+    const username =
+      profile?.display_name ||
+      profile?.username ||
+      currentUser.email ||
+      "Player";
+
+    $("topAccountName").textContent = username;
+    $("sidebarUsername").textContent = username;
+    $("sidebarRole").textContent = profile?.role || "user";
+    $("sidebarAvatar").textContent = username.charAt(0).toUpperCase();
+
+    $("authStatus").textContent = "Signed in as " + username;
+    $("authForms").style.display = "none";
+    $("signOutButton").style.display = "inline-block";
+
+    const isStaff = ["support", "admin", "owner"].includes(profile?.role);
+    $("adminNavItem").style.display = isStaff ? "block" : "none";
+
+    await checkRestriction();
+  } else {
+    currentProfile = null;
+    $("topAccountName").textContent = "Guest";
+    $("sidebarUsername").textContent = "Guest";
+    $("sidebarRole").textContent = "Not signed in";
+    $("sidebarAvatar").textContent = "?";
+    $("authStatus").textContent = "You are not signed in.";
+    $("authForms").style.display = "block";
+    $("signOutButton").style.display = "none";
+    $("adminNavItem").style.display = "none";
+  }
+
+  updateDashboard();
+}
+
+async function signUp() {
+  if (!supabaseClient) return message("authStatus", "Supabase is not configured.", true);
+
+  const email = $("authEmail").value.trim();
+  const password = $("authPassword").value;
+  const username = $("authUsername").value.trim();
+
+  if (!email || !password || !username) {
+    return message("authStatus", "Enter your username, email and password.", true);
+  }
+
+  const { error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { username, display_name: username }
+    }
   });
 
-  updateOverview();
+  message("authStatus", error ? error.message : "Account created. Check your email if confirmation is enabled.", !!error);
 }
 
-on("addMatchButton", "click", () => {
-  const hero = $("matchHero")?.value.trim();
+async function signIn() {
+  if (!supabaseClient) return;
 
-  if (!hero) {
-    alert("Enter a hero name.");
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email: $("authEmail").value.trim(),
+    password: $("authPassword").value
+  });
+
+  if (error) return message("authStatus", error.message, true);
+
+  await refreshAuth();
+}
+
+async function oauth(provider) {
+  if (!supabaseClient) return;
+
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider,
+    options: { redirectTo: location.origin }
+  });
+
+  if (error) message("authStatus", error.message, true);
+}
+
+async function signOut() {
+  if (!supabaseClient) return;
+  await supabaseClient.auth.signOut();
+  location.reload();
+}
+
+$("signUpButton").onclick = signUp;
+$("signInButton").onclick = signIn;
+$("signOutButton").onclick = signOut;
+$("googleSignInButton").onclick = () => oauth("google");
+$("discordSignInButton").onclick = () => oauth("discord");
+
+async function checkRestriction() {
+  if (!currentUser) return;
+
+  const { data, error } = await supabaseClient
+    .from("account_restrictions")
+    .select("*")
+    .eq("user_id", currentUser.id)
+    .maybeSingle();
+
+  if (error || !data) return;
+
+  if (data.status === "suspended" && data.suspended_until &&
+      new Date(data.suspended_until) <= new Date()) {
     return;
   }
 
-  matches.unshift({
-    hero,
-    result: $("matchResult")?.value || "win",
-    kills: Number($("matchKills")?.value || 0),
-    deaths: Number($("matchDeaths")?.value || 0),
-    assists: Number($("matchAssists")?.value || 0),
-    mode: $("matchMode")?.value || "Ranked",
-    date: new Date().toISOString()
-  });
+  alert(
+    "Your RankPulse account is restricted.\n\nStatus: " +
+    data.status + "\nReason: " + data.reason
+  );
+}
 
-  saveMatches();
+/* =========================================
+   DASHBOARD AND MATCH HISTORY
+========================================= */
 
-  if ($("matchHero")) $("matchHero").value = "";
-});
-
-on("clearMatchesButton", "click", () => {
-  if (!confirm("Delete all recorded matches?")) return;
-  matches = [];
-  saveMatches();
-});
-
-function updateOverview() {
+function updateDashboard() {
   const total = matches.length;
   const wins = matches.filter(m => m.result === "win").length;
-  const winRate = total ? (wins / total * 100).toFixed(1) : "--";
+  const winRate = total ? (wins / total * 100).toFixed(1) : "0.0";
 
-  const kills = matches.reduce((sum, m) => sum + m.kills, 0);
-  const deaths = matches.reduce((sum, m) => sum + m.deaths, 0);
-  const assists = matches.reduce((sum, m) => sum + m.assists, 0);
-  const kda = deaths ? ((kills + assists) / deaths).toFixed(2) : (kills + assists).toFixed(2);
+  const kills = matches.reduce((s, m) => s + Number(m.kills || 0), 0);
+  const deaths = matches.reduce((s, m) => s + Number(m.deaths || 0), 0);
+  const assists = matches.reduce((s, m) => s + Number(m.assists || 0), 0);
+
+  $("overviewWinRate").textContent = winRate + "%";
+  $("overviewMatches").textContent = total;
+  $("overviewKDA").textContent =
+    deaths ? ((kills + assists) / deaths).toFixed(2) :
+    (kills + assists).toFixed(2);
 
   let streak = 0;
   for (const match of matches) {
@@ -727,278 +225,617 @@ function updateOverview() {
     streak++;
   }
 
-  setMessage("overviewWinRate", winRate + (winRate === "--" ? "" : "%"));
-  setMessage("overviewMatches", total);
-  setMessage("overviewKDA", kda);
-  setMessage("overviewStreak", streak);
+  $("overviewStreak").textContent = streak;
+  $("recentMatches").innerHTML = total
+    ? matches.slice(0, 5).map(matchHTML).join("")
+    : "Your recent matches will appear here.";
 }
 
-/* RANK TARGET — LOCAL STORAGE */
-
-function renderRankTarget() {
-  const saved = localStorage.getItem("rankpulse_target");
-  if (saved && $("targetRank")) $("targetRank").value = saved;
+function matchHTML(match) {
+  return `<div class="recommendation">
+    <strong>${escapeHTML(match.hero)}</strong>
+    <span style="color:${match.result === "win" ? "#25c878" : "#ff5364"}">
+      ${match.result === "win" ? "VICTORY" : "DEFEAT"}
+    </span>
+    <p>${match.kills}/${match.deaths}/${match.assists} · ${escapeHTML(match.mode)}</p>
+    <button class="text-button" onclick="deleteMatch('${match.id}')">Delete</button>
+  </div>`;
 }
 
-on("saveRankTarget", "click", () => {
-  const current = $("currentRank")?.value;
-  const target = $("targetRank")?.value;
-  const stars = Number($("currentStars")?.value || 0);
+function renderMatches() {
+  $("matchHistoryList").innerHTML = matches.length
+    ? matches.map(matchHTML).join("")
+    : '<div class="empty-state">No matches recorded yet.</div>';
+}
 
-  if (!target) return;
+function addMatch() {
+  const hero = $("matchHero").value.trim();
+  if (!hero) return alert("Enter a hero name.");
 
+  matches.unshift({
+    id: crypto.randomUUID(),
+    hero,
+    result: $("matchResult").value,
+    kills: Math.max(0, Number($("matchKills").value)),
+    deaths: Math.max(0, Number($("matchDeaths").value)),
+    assists: Math.max(0, Number($("matchAssists").value)),
+    mode: $("matchMode").value,
+    date: new Date().toISOString()
+  });
+
+  $("matchHero").value = "";
+  saveMatches();
+}
+
+function deleteMatch(id) {
+  matches = matches.filter(m => m.id !== id);
+  saveMatches();
+}
+
+$("addMatchButton").onclick = addMatch;
+
+$("clearMatchesButton").onclick = () => {
+  if (!confirm("Delete all match history on this device?")) return;
+  matches = [];
+  saveMatches();
+};
+
+/* =========================================
+   RANK TARGET
+========================================= */
+
+$("saveRankTarget").onclick = () => {
+  const current = $("currentRank").value;
+  const target = $("targetRank").value;
+  const stars = Number($("currentStars").value);
+
+  if (RANKS.indexOf(target) < RANKS.indexOf(current)) {
+    return message("rankTargetResult", "Your target rank is below your current rank.", true);
+  }
+
+  localStorage.setItem("rankpulse_current_rank", current);
+  localStorage.setItem("rankpulse_current_stars", stars);
   localStorage.setItem("rankpulse_target", target);
-  localStorage.setItem("rankpulse_current_rank", current || "");
-  localStorage.setItem("rankpulse_current_stars", String(stars));
 
-  setMessage(
-    "rankTargetResult",
-    `Your target is ${target}. Current rank: ${current}, ${stars} stars.`
+  message("rankTargetResult", `Target saved: ${target}. Current rank: ${current}, ${stars} stars.`);
+};
+
+/* =========================================
+   WIN RATE CALCULATOR
+========================================= */
+
+$("calculateWinRateButton").onclick = () => {
+  const matchesPlayed = Number($("calcMatches").value);
+  const rate = Number($("calcWinRate").value);
+  const target = Number($("calcTargetWinRate").value);
+
+  if (!Number.isInteger(matchesPlayed) || matchesPlayed <= 0 ||
+      rate < 0 || rate > 100 || target <= 0 || target > 100) {
+    return message("winRateResult", "Enter valid matches and percentages.", true);
+  }
+
+  const wins = Math.round(matchesPlayed * rate / 100);
+  const actualRate = wins / matchesPlayed * 100;
+
+  if (actualRate >= target) {
+    return message("winRateResult", `You already have approximately ${actualRate.toFixed(2)}%.`);
+  }
+
+  if (target === 100) {
+    return message("winRateResult", "You cannot reach 100% with a finite number of additional matches.", true);
+  }
+
+  const needed = Math.ceil((target * matchesPlayed - 100 * wins) / (100 - target));
+
+  message("winRateResult",
+    `Estimated current wins: ${wins}<br>
+     Current calculated WR: ${actualRate.toFixed(2)}%<br>
+     Wins needed in a row: ${needed}<br>
+     Total matches afterward: ${matchesPlayed + needed}`
   );
-});
+};
 
-/* AUTHENTICATION */
+/* =========================================
+   RANK PROGRESS CALCULATOR
+========================================= */
 
-function setAuthMessage(message) {
-  setMessage("authStatus", message);
+function rankPoints(rank, stars) {
+  const index = RANKS.indexOf(rank);
+  const offsets = [0, 3, 9, 21, 33, 45, 55, 80, 105, 155];
+  return offsets[index] + stars;
 }
 
-async function updateAuthUI() {
-  if (!supabaseClient) {
-    setAuthMessage("Supabase could not load. Refresh the website.");
+$("calculateRankButton").onclick = () => {
+  const currentRank = $("calcCurrentRank").value;
+  const targetRank = $("calcTargetRank").value;
+  const currentStars = Number($("calcCurrentStars").value);
+  const targetStars = Number($("calcTargetStars").value);
+
+  if (RANKS.indexOf(targetRank) < RANKS.indexOf(currentRank)) {
+    return message("rankCalculatorResult", "Target rank must be above current rank.", true);
+  }
+
+  const difference = rankPoints(targetRank, targetStars) -
+    rankPoints(currentRank, currentStars);
+
+  message("rankCalculatorResult",
+    difference >= 0
+      ? `Estimated progress: ${difference} stars. Rank thresholds are approximate; check the current season rules.`
+      : "Your target is below your current progress."
+  );
+};
+
+/* =========================================
+   HERO API
+========================================= */
+
+async function loadHeroes() {
+  if (heroes.length) return renderHeroPages();
+
+  $("heroGrid").innerHTML = "Loading heroes...";
+
+  try {
+    const rank = $("heroRankFilter").value || "all";
+    const sort = $("heroSort").value || "win_rate";
+
+    const response = await fetch(
+      `${API_BASE}/heroes/rank?days=7&rank=${encodeURIComponent(rank)}&sort_field=${encodeURIComponent(sort)}&size=200`
+    );
+
+    if (!response.ok) throw new Error("Hero API returned " + response.status);
+
+    const data = await response.json();
+    heroes = data.data || data.heroes || data || [];
+
+    if (!Array.isArray(heroes)) heroes = [];
+
+    renderHeroPages();
+  } catch (error) {
+    $("heroGrid").textContent = "Could not load hero data: " + error.message;
+  }
+}
+
+function heroName(hero) {
+  return hero.name || hero.hero_name || hero.hero || "Unknown Hero";
+}
+
+function heroStat(hero, key) {
+  return hero[key] ?? hero[key.replace("_", "")] ?? "—";
+}
+
+function renderHeroPages() {
+  const search = ($("heroSearch").value || "").toLowerCase();
+  const filtered = heroes.filter(h => heroName(h).toLowerCase().includes(search));
+
+  $("heroGrid").innerHTML = filtered.map(h => `
+    <div class="hero-card">
+      <div style="padding:15px">
+        <h3>${escapeHTML(heroName(h))}</h3>
+        <p>Win Rate: ${escapeHTML(heroStat(h, "win_rate"))}</p>
+        <p>Pick Rate: ${escapeHTML(heroStat(h, "pick_rate"))}</p>
+        <p>Ban Rate: ${escapeHTML(heroStat(h, "ban_rate"))}</p>
+      </div>
+    </div>
+  `).join("") || "No heroes found.";
+
+  $("tierListContent").innerHTML = [...filtered]
+    .sort((a, b) => Number(b.win_rate || 0) - Number(a.win_rate || 0))
+    .map((h, i) => `<div class="recommendation">
+      <strong>${i + 1}. ${escapeHTML(heroName(h))}</strong>
+      <span> · WR ${escapeHTML(heroStat(h, "win_rate"))}</span>
+    </div>`).join("");
+
+  $("metaMovers").innerHTML =
+    '<div class="empty-state">Historical comparisons require previous API snapshots.</div>';
+}
+
+$("heroSearch").addEventListener("input", renderHeroPages);
+$("heroRankFilter").addEventListener("change", () => { heroes = []; loadHeroes(); });
+$("heroSort").addEventListener("change", () => { heroes = []; loadHeroes(); });
+
+/* =========================================
+   DRAFT COUNTER
+========================================= */
+
+function renderDraft() {
+  $("myTeamSlots").innerHTML = allyPicks.map((h, i) => `
+    <button class="team-slot" onclick="chooseDraftHero('ally',${i})">
+      ${h ? escapeHTML(h) : "＋ Choose ally " + (i + 1)}
+    </button>`).join("");
+
+  $("enemyTeamSlots").innerHTML = enemyPicks.map((h, i) => `
+    <button class="team-slot" onclick="chooseDraftHero('enemy',${i})">
+      ${h ? escapeHTML(h) : "＋ Choose enemy " + (i + 1)}
+    </button>`).join("");
+
+  $("banSlots").innerHTML = bans.map((h, i) => `
+    <button class="ban-slot" onclick="chooseBan(${i})">
+      ${h ? escapeHTML(h) : "Ban " + (i + 1)}
+    </button>`).join("");
+
+  const selected = [...allyPicks, ...enemyPicks, ...bans].filter(Boolean);
+  const available = heroes
+    .map(heroName)
+    .filter(name => !selected.includes(name));
+
+  $("recommendations").innerHTML = available.slice(0, 12).map(name =>
+    `<button class="recommendation" onclick="addRecommendedHero('${escapeHTML(name).replace(/'/g, "\\'")}')">${escapeHTML(name)}</button>`
+  ).join("") || "Load heroes to see suggestions.";
+}
+
+function chooseDraftHero(team, index) {
+  const choices = heroes.map(heroName).filter(Boolean);
+  const name = prompt("Type a hero name:\n" + choices.slice(0, 30).join(", "));
+  if (!name) return;
+
+  if (!choices.some(h => h.toLowerCase() === name.toLowerCase())) {
+    return alert("Hero not found in loaded hero data.");
+  }
+
+  if (team === "ally") allyPicks[index] = name;
+  else enemyPicks[index] = name;
+
+  renderDraft();
+}
+
+function chooseBan(index) {
+  const name = prompt("Enter hero to ban:");
+  if (!name) return;
+  bans[index] = name;
+  renderDraft();
+}
+
+function addRecommendedHero(name) {
+  const index = allyPicks.findIndex(h => !h);
+  if (index < 0) return alert("Your team slots are full.");
+  allyPicks[index] = name;
+  renderDraft();
+}
+
+$("draftLane").onchange = renderDraft;
+$("pickOrder").onchange = renderDraft;
+$("laneOnly").onchange = renderDraft;
+
+/* =========================================
+   SUPPORT TICKETS
+========================================= */
+
+async function loadTickets() {
+  if (!currentUser) {
+    $("ticketList").textContent = "Sign in to view your tickets.";
     return;
   }
 
-  try {
-    const { data, error } = await supabaseClient.auth.getSession();
-    if (error) throw error;
+  const { data, error } = await supabaseClient
+    .from("support_tickets")
+    .select("*")
+    .eq("user_id", currentUser.id)
+    .order("created_at", { ascending: false });
 
-    const session = data.session;
-    const forms = $("authForms");
-    const signOut = $("signOutButton");
-    const accountName = $("topAccountName");
+  if (error) return message("ticketStatus", error.message, true);
 
-    if (session) {
-      const user = session.user;
-      const name =
-        user.user_metadata?.username ||
-        user.user_metadata?.full_name ||
-        user.email ||
-        "RankPulse User";
-
-      setAuthMessage("Signed in as " + name);
-
-      if (forms) forms.style.display = "none";
-      if (signOut) signOut.style.display = "block";
-      if (accountName) accountName.textContent = name;
-    } else {
-      setAuthMessage("You are not signed in.");
-
-      if (forms) forms.style.display = "block";
-      if (signOut) signOut.style.display = "none";
-      if (accountName) accountName.textContent = "Guest Account";
-    }
-  } catch (error) {
-    console.error(error);
-    setAuthMessage(error.message || "Could not check login.");
-  }
+  $("ticketList").innerHTML = (data || []).map(ticket => `
+    <div class="recommendation">
+      <strong>${escapeHTML(ticket.subject)}</strong>
+      <p>${escapeHTML(ticket.message)}</p>
+      <small>Status: ${escapeHTML(ticket.status)}</small>
+      <button class="text-button" onclick="loadReplies('${ticket.id}')">View Replies</button>
+      <div id="replies-${ticket.id}"></div>
+      <input class="input-field" id="reply-${ticket.id}" placeholder="Write a reply">
+      <button class="outline-button" onclick="sendReply('${ticket.id}')">Send Reply</button>
+    </div>
+  `).join("") || "No support tickets yet.";
 }
 
-/* EMAIL SIGN UP */
+$("submitTicketButton").onclick = async () => {
+  if (!currentUser) return message("ticketStatus", "Sign in first.", true);
 
-on("signUpButton", "click", async () => {
-  if (!supabaseClient) return setAuthMessage("Supabase is unavailable.");
+  const subject = $("ticketSubject").value.trim();
+  const body = $("ticketMessage").value.trim();
 
-  const email = $("authEmail")?.value.trim();
-  const password = $("authPassword")?.value;
-  const username = $("authUsername")?.value.trim();
+  if (!subject || !body) return message("ticketStatus", "Fill in both fields.", true);
 
-  if (!email || !password || !username) {
-    return setAuthMessage("Enter your email, password and username.");
-  }
-
-  if (password.length < 6) {
-    return setAuthMessage("Password must be at least 6 characters.");
-  }
-
-  setAuthMessage("Creating your account...");
-
-  try {
-    const { data, error } = await supabaseClient.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username,
-          display_name: username
-        }
-      }
-    });
-
-    if (error) throw error;
-
-    if (data.session) {
-      setAuthMessage("Account created successfully!");
-    } else {
-      setAuthMessage("Account created! Check your email to confirm it.");
-    }
-
-    await updateAuthUI();
-  } catch (error) {
-    console.error("Sign up:", error);
-    setAuthMessage(error.message || "Could not create account.");
-  }
-});
-
-/* EMAIL SIGN IN */
-
-on("signInButton", "click", async () => {
-  if (!supabaseClient) return setAuthMessage("Supabase is unavailable.");
-
-  const email = $("authEmail")?.value.trim();
-  const password = $("authPassword")?.value;
-
-  if (!email || !password) {
-    return setAuthMessage("Enter your email and password.");
-  }
-
-  setAuthMessage("Signing in...");
-
-  try {
-    const { error } = await supabaseClient.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) throw error;
-
-    setAuthMessage("Welcome back!");
-    await updateAuthUI();
-  } catch (error) {
-    console.error("Sign in:", error);
-    setAuthMessage(error.message || "Could not sign in.");
-  }
-});
-
-/* GOOGLE AND DISCORD OAUTH */
-
-async function signInWithProvider(provider) {
-  if (!supabaseClient) {
-    return setAuthMessage("Supabase is unavailable.");
-  }
-
-  setAuthMessage(`Connecting to ${provider}...`);
-
-  try {
-    const { error } = await supabaseClient.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: window.location.origin
-      }
-    });
-
-    if (error) throw error;
-  } catch (error) {
-    console.error(`${provider} login:`, error);
-    setAuthMessage(error.message || `${provider} sign-in failed.`);
-  }
-}
-
-on("googleSignInButton", "click", () => {
-  signInWithProvider("google");
-});
-
-on("discordSignInButton", "click", () => {
-  signInWithProvider("discord");
-});
-
-/* SIGN OUT */
-
-on("signOutButton", "click", async () => {
-  if (!supabaseClient) return;
-
-  try {
-    const { error } = await supabaseClient.auth.signOut();
-    if (error) throw error;
-    await updateAuthUI();
-  } catch (error) {
-    setAuthMessage(error.message || "Could not sign out.");
-  }
-});
-
-/* AUTH SESSION RESTORE */
-
-if (supabaseClient) {
-  supabaseClient.auth.onAuthStateChange(() => {
-    updateAuthUI();
+  const { error } = await supabaseClient.from("support_tickets").insert({
+    user_id: currentUser.id,
+    subject,
+    message: body,
+    status: "open"
   });
 
-  updateAuthUI();
-} else {
-  setAuthMessage("Supabase library unavailable.");
+  if (error) return message("ticketStatus", error.message, true);
+
+  $("ticketSubject").value = "";
+  $("ticketMessage").value = "";
+  message("ticketStatus", "Ticket submitted.");
+  loadTickets();
+};
+
+async function loadReplies(ticketId) {
+  const { data, error } = await supabaseClient
+    .from("support_replies")
+    .select("*")
+    .eq("ticket_id", ticketId)
+    .order("created_at");
+
+  if (error) return alert(error.message);
+
+  $("replies-" + ticketId).innerHTML = (data || []).map(r =>
+    `<p>${escapeHTML(r.message)}</p>`
+  ).join("") || "No replies yet.";
 }
 
-/* SUPPORT TICKET PLACEHOLDER */
+async function sendReply(ticketId) {
+  const input = $("reply-" + ticketId);
+  const text = input.value.trim();
+  if (!text || !currentUser) return;
 
-on("submitTicketButton", "click", async () => {
-  if (!supabaseClient) return setMessage("ticketStatus", "Supabase unavailable.");
+  const { error } = await supabaseClient.from("support_replies").insert({
+    ticket_id: ticketId,
+    user_id: currentUser.id,
+    message: text
+  });
 
-  const { data } = await supabaseClient.auth.getUser();
+  if (error) return alert(error.message);
 
-  if (!data.user) {
-    return setMessage("ticketStatus", "Please sign in first.");
+  input.value = "";
+  loadReplies(ticketId);
+}
+
+/* =========================================
+   FRIEND SEARCH
+========================================= */
+
+async function loadFriends() {
+  if (!currentUser) {
+    $("friendResults").textContent = "Sign in to use friends.";
+    return;
   }
 
-  const subject = $("ticketSubject")?.value.trim();
-  const message = $("ticketMessage")?.value.trim();
+  const { data, error } = await supabaseClient
+    .from("friend_requests")
+    .select("*")
+    .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`);
 
-  if (!subject || !message) {
-    return setMessage("ticketStatus", "Enter a subject and message.");
+  if (error) return message("friendResults", error.message, true);
+
+  $("friendRequests").innerHTML = (data || []).map(r =>
+    `<div class="recommendation">
+      ${escapeHTML(r.status || "Friend request")}
+    </div>`
+  ).join("");
+}
+
+$("friendSearchButton").onclick = async () => {
+  if (!currentUser) return message("friendResults", "Sign in first.", true);
+
+  const term = $("friendSearch").value.trim();
+  if (!term) return;
+
+  const { data, error } = await supabaseClient
+    .from("profiles")
+    .select("id,username,display_name")
+    .ilike("username", `%${term}%`)
+    .limit(20);
+
+  if (error) return message("friendResults", error.message, true);
+
+  $("friendResults").innerHTML = (data || [])
+    .filter(p => p.id !== currentUser.id)
+    .map(p => `
+      <div class="recommendation">
+        <strong>${escapeHTML(p.display_name || p.username)}</strong>
+        <button class="outline-button" onclick="sendFriendRequest('${p.id}')">Add Friend</button>
+      </div>`).join("") || "No users found.";
+};
+
+async function sendFriendRequest(receiverId) {
+  const { error } = await supabaseClient.from("friend_requests").insert({
+    sender_id: currentUser.id,
+    receiver_id: receiverId,
+    status: "pending"
+  });
+
+  alert(error ? error.message : "Friend request sent.");
+}
+
+/* =========================================
+   ADMIN DASHBOARD
+========================================= */
+
+async function loadAdmin() {
+  if (!currentUser || !currentProfile ||
+      !["owner", "admin", "support"].includes(currentProfile.role)) {
+    return message("adminAccessMessage", "You do not have permission to access this dashboard.", true);
   }
+
+  message("adminAccessMessage", "Signed in as " + currentProfile.role);
+
+  const { count: users } = await supabaseClient
+    .from("profiles").select("*", { count: "exact", head: true });
+
+  const { count: tickets } = await supabaseClient
+    .from("support_tickets").select("*", { count: "exact", head: true })
+    .eq("status", "open");
+
+  const { count: restricted } = await supabaseClient
+    .from("account_restrictions").select("*", { count: "exact", head: true });
+
+  $("adminTotalUsers").textContent = users ?? "—";
+  $("adminOpenTickets").textContent = tickets ?? "—";
+  $("adminRestrictedUsers").textContent = restricted ?? "—";
+
+  await loadAdminTickets();
+  await loadRestrictionHistory();
+}
+
+$("adminUserSearchButton").onclick = async () => {
+  if (!["owner", "admin"].includes(currentProfile?.role)) {
+    return message("adminUserResults", "Only admins and owners can search users.", true);
+  }
+
+  const term = $("adminUserSearch").value.trim();
+
+  const { data, error } = await supabaseClient
+    .from("profiles")
+    .select("id,username,display_name,role")
+    .ilike("username", `%${term}%`)
+    .limit(30);
+
+  if (error) return message("adminUserResults", error.message, true);
+
+  $("adminUserResults").innerHTML = (data || []).map(user => `
+    <div class="recommendation">
+      <strong>${escapeHTML(user.display_name || user.username)}</strong>
+      <p>${escapeHTML(user.role)} · ${escapeHTML(user.id)}</p>
+    </div>`).join("") || "No users found.";
+};
+
+async function loadAdminTickets() {
+  const { data, error } = await supabaseClient
+    .from("support_tickets")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) return message("adminTicketList", error.message, true);
+
+  $("adminTicketList").innerHTML = (data || []).map(t => `
+    <div class="recommendation">
+      <strong>${escapeHTML(t.subject)}</strong>
+      <p>${escapeHTML(t.message)}</p>
+      <p>Status: ${escapeHTML(t.status)}</p>
+      <button class="outline-button" onclick="changeTicketStatus('${t.id}','open')">Open</button>
+      <button class="outline-button" onclick="changeTicketStatus('${t.id}','closed')">Close</button>
+      <input class="input-field" id="staff-reply-${t.id}" placeholder="Reply to ticket">
+      <button class="primary-button" onclick="staffReply('${t.id}')">Reply</button>
+    </div>
+  `).join("") || "No tickets.";
+}
+
+async function changeTicketStatus(id, status) {
+  if (!["owner", "admin", "support"].includes(currentProfile?.role)) return;
 
   const { error } = await supabaseClient
-    .from("support_tickets")
-    .insert({
-      user_id: data.user.id,
-      subject,
-      message
-    });
+    .from("support_tickets").update({ status }).eq("id", id);
 
-  if (error) {
-    console.error(error);
-    setMessage("ticketStatus", "Could not submit ticket: " + error.message);
-  } else {
-    setMessage("ticketStatus", "Your support ticket was submitted!");
-    $("ticketSubject").value = "";
-    $("ticketMessage").value = "";
+  if (error) return alert(error.message);
+  loadAdminTickets();
+}
+
+async function staffReply(ticketId) {
+  if (!["owner", "admin", "support"].includes(currentProfile?.role)) return;
+
+  const input = $("staff-reply-" + ticketId);
+  const text = input.value.trim();
+  if (!text) return;
+
+  const { error } = await supabaseClient.from("support_replies").insert({
+    ticket_id: ticketId,
+    user_id: currentUser.id,
+    message: text
+  });
+
+  if (error) return alert(error.message);
+
+  input.value = "";
+  alert("Reply sent.");
+}
+
+$("applyRestrictionButton").onclick = async () => {
+  if (!["owner", "admin"].includes(currentProfile?.role)) {
+    return message("restrictionStatus", "Only admins and owners can restrict accounts.", true);
   }
-});
 
-/* MLBB ACCOUNT CONNECTION */
+  const userId = $("restrictionUserId").value.trim();
+  const action = $("restrictionAction").value;
+  const reason = $("restrictionReason").value.trim();
 
-const mlbbStatus = document.createElement("div");
-mlbbStatus.id = "mlbbConnectionStatus";
+  if (!userId) return message("restrictionStatus", "Enter the user ID.", true);
+  if (userId === currentUser.id) return message("restrictionStatus", "You cannot restrict your own account.", true);
+  if (!reason) return message("restrictionStatus", "Enter a reason.", true);
 
-const mlbbPanel = document.querySelector("#page-settings .panel:last-child");
+  if (!confirm("Confirm this account action?")) return;
 
-if (mlbbPanel) {
-  mlbbPanel.appendChild(mlbbStatus);
-  mlbbStatus.className = "notice";
-  mlbbStatus.textContent =
-    "MLBB account linking is not enabled yet. Secure server-side token storage must be implemented first.";
+  if (action === "unbanned") {
+    const { error } = await supabaseClient
+      .from("account_restrictions").delete().eq("user_id", userId);
+
+    if (error) return message("restrictionStatus", error.message, true);
+
+    await supabaseClient.from("account_restriction_history").insert({
+      user_id: userId,
+      action: "unbanned",
+      reason,
+      performed_by: currentUser.id
+    });
+  } else {
+    const duration = Number($("restrictionDuration").value);
+    const until = action === "suspended" && duration > 0
+      ? new Date(Date.now() + duration * 3600000).toISOString()
+      : null;
+
+    const { error } = await supabaseClient
+      .from("account_restrictions")
+      .upsert({
+        user_id: userId,
+        status: action,
+        reason,
+        suspended_until: until,
+        restricted_by: currentUser.id,
+        restricted_at: new Date().toISOString()
+      });
+
+    if (error) return message("restrictionStatus", error.message, true);
+
+    await supabaseClient.from("account_restriction_history").insert({
+      user_id: userId,
+      action,
+      reason,
+      performed_by: currentUser.id
+    });
+  }
+
+  message("restrictionStatus", "Action saved to the database.");
+  loadAdmin();
+};
+
+async function loadRestrictionHistory() {
+  if (!["owner", "admin"].includes(currentProfile?.role)) return;
+
+  const { data, error } = await supabaseClient
+    .from("account_restriction_history")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) return message("restrictionHistory", error.message, true);
+
+  $("restrictionHistory").innerHTML = (data || []).map(r =>
+    `<div class="recommendation">
+      ${escapeHTML(r.action)} — ${escapeHTML(r.reason)}
+      <p>${escapeHTML(r.user_id)}</p>
+    </div>`
+  ).join("") || "No restriction history.";
 }
 
-/* INITIALIZE */
+/* =========================================
+   INITIALIZATION
+========================================= */
 
-function initializeRankPulse() {
-  renderTeamSlots();
-  renderBans();
-  updateRecommendations();
+async function initialize() {
+  if (!supabaseClient || SUPABASE_KEY.includes("PASTE_")) {
+    message("authStatus", "Add your existing Supabase publishable key in script.js.", true);
+  } else {
+    await refreshAuth();
+
+    supabaseClient.auth.onAuthStateChange(() => {
+      setTimeout(refreshAuth, 0);
+    });
+  }
+
   renderMatches();
-  renderRankTarget();
-  loadHeroStats();
+  updateDashboard();
+  renderDraft();
 }
 
-initializeRankPulse();
-
-console.log("RankPulse initialized.");
+initialize();

@@ -1,18 +1,52 @@
+
+/* ==========================================
+   RANKPULSE — COMPLETE JAVASCRIPT
+========================================== */
+
 /* SUPABASE CONNECTION */
 
 const SUPABASE_URL = "https://nwuyuncvtaliryuoqrap.supabase.co";
 
 const SUPABASE_KEY = "sb_publishable_qTkztL9y-_W4I-x99J0REQ_Y0TDwzzM";
 
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+let supabaseClient = null;
 
-/* RANKPULSE MLBB API */
+if (window.supabase?.createClient) {
+  supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+}
+
+/* MLBB API */
 
 const API_BASE =
   "https://rankpulseapi.kaiiiiiiii6767.workers.dev/api";
+
+/* SAFE HTML HELPERS */
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+function on(id, event, callback) {
+  const element = $(id);
+  if (element) element.addEventListener(event, callback);
+}
+
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[character]);
+}
+
+function getInitial(name) {
+  return String(name || "?").charAt(0).toUpperCase();
+}
 
 /* HERO DATABASE */
 
@@ -43,7 +77,6 @@ const HEROES = [
 
 let selectedLane = "Gold";
 let selectedTiming = "Last";
-
 let selectedTeam = "ally";
 let selectedSlot = 0;
 
@@ -61,8 +94,7 @@ function navigateTo(pageName) {
     page.classList.remove("active");
   });
 
-  const target = document.getElementById("page-" + pageName);
-
+  const target = $("page-" + pageName);
   if (!target) return;
 
   target.classList.add("active");
@@ -74,10 +106,7 @@ function navigateTo(pageName) {
     );
   });
 
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth"
-  });
+  window.scrollTo({ top: 0, behavior: "smooth" });
 
   if (pageName === "meta" && heroStats.length === 0) {
     loadHeroStats();
@@ -94,21 +123,7 @@ document.querySelectorAll("[data-page]").forEach(button => {
   });
 });
 
-/* HELPERS */
-
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, character => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#039;"
-  })[character]);
-}
-
-function getInitial(name) {
-  return String(name || "?").charAt(0).toUpperCase();
-}
+/* HERO STAT HELPERS */
 
 function findStat(heroName) {
   return heroStats.find(hero =>
@@ -140,7 +155,7 @@ function getHeroPortrait(heroName) {
       src="${escapeHTML(hero.image)}"
       alt="${escapeHTML(heroName)}"
       loading="lazy"
-      onerror="this.style.display='none';this.parentElement.textContent='${escapeHTML(getInitial(heroName))}'"
+      onerror="this.style.display='none'"
     >
   `;
 }
@@ -156,7 +171,6 @@ document.querySelectorAll("[data-lane]").forEach(button => {
     });
 
     button.classList.add("selected-orange");
-
     updateRecommendations();
   });
 });
@@ -172,12 +186,11 @@ document.querySelectorAll("[data-timing]").forEach(button => {
     });
 
     button.classList.add("selected-blue");
-
     updateRecommendations();
   });
 });
 
-/* TEAM SLOT RENDERING */
+/* TEAM SLOTS */
 
 function renderTeamSlots() {
   renderOneTeam("ally", allyPicks, "Your pick");
@@ -185,7 +198,7 @@ function renderTeamSlots() {
 }
 
 function renderOneTeam(team, picks, label) {
-  const container = document.getElementById(
+  const container = $(
     team === "ally" ? "allySlots" : "enemySlots"
   );
 
@@ -200,6 +213,7 @@ function renderOneTeam(team, picks, label) {
         class="team-slot ${selected ? "selected-slot" : ""}"
         data-team="${team}"
         data-slot="${index}"
+        type="button"
       >
         <span class="slot-avatar">
           ${hero ? getHeroPortrait(hero) : "+"}
@@ -210,24 +224,24 @@ function renderOneTeam(team, picks, label) {
           <small>${hero ? "Click to replace hero" : "Select a hero"}</small>
         </span>
 
-        ${hero ? `<span style="margin-left:auto;color:#8fa2b5">×</span>` : ""}
+        ${hero ? `<span style="margin-left:auto">×</span>` : ""}
       </button>
     `;
   }).join("");
 
   container.querySelectorAll("[data-slot]").forEach(button => {
     button.addEventListener("click", () => {
-      const index = Number(button.dataset.slot);
-
       selectedTeam = team;
-      selectedSlot = index;
+      selectedSlot = Number(button.dataset.slot);
 
       renderTeamSlots();
 
-      document.getElementById("selectionHint").textContent =
-        `Selecting for ${team === "ally" ? "your team" : "enemy team"} slot ${index + 1}`;
+      if ($("selectionHint")) {
+        $("selectionHint").textContent =
+          `Selecting for ${team === "ally" ? "your team" : "enemy team"} slot ${selectedSlot + 1}`;
+      }
 
-      document.getElementById("heroSearch").focus();
+      $("heroSearch")?.focus();
     });
   });
 }
@@ -235,8 +249,7 @@ function renderOneTeam(team, picks, label) {
 /* HERO PICKER */
 
 function renderHeroPicker(search = "") {
-  const container = document.getElementById("heroPicker");
-
+  const container = $("heroPicker");
   if (!container) return;
 
   const query = search.toLowerCase().trim();
@@ -252,17 +265,15 @@ function renderHeroPicker(search = "") {
     !alreadyUsed.includes(name)
   );
 
-  if (available.length === 0) {
+  if (!available.length) {
     container.innerHTML = `
-      <div class="empty-state">
-        No available heroes found.
-      </div>
+      <div class="empty-state">No available heroes found.</div>
     `;
     return;
   }
 
   container.innerHTML = available.map(name => `
-    <button class="hero-card" data-hero="${escapeHTML(name)}">
+    <button class="hero-card" data-hero="${escapeHTML(name)}" type="button">
       <div class="hero-portrait">
         ${getHeroPortrait(name)}
       </div>
@@ -278,7 +289,7 @@ function renderHeroPicker(search = "") {
   });
 }
 
-document.getElementById("heroSearch").addEventListener("input", event => {
+on("heroSearch", "input", event => {
   renderHeroPicker(event.target.value);
 });
 
@@ -291,44 +302,53 @@ function addHero(heroName) {
     allyPicks.includes(heroName) ||
     enemyPicks.includes(heroName) ||
     bans.includes(heroName)
-  ) {
-    return;
-  }
+  ) return;
 
-  if (selectedTeam === "ally") {
+  if (selectedTeam === "ban") {
+    if (bans.length >= 10) return;
+
+    bans.push(heroName);
+    selectedTeam = "ally";
+
+    const next = allyPicks.findIndex(hero => hero === null);
+    selectedSlot = next === -1 ? 0 : next;
+
+    renderBans();
+  } else if (selectedTeam === "ally") {
     allyPicks[selectedSlot] = heroName;
+
+    const next = allyPicks.findIndex(hero => hero === null);
+    if (next !== -1) selectedSlot = next;
   } else {
     enemyPicks[selectedSlot] = heroName;
-  }
 
-  const nextEmpty = selectedTeam === "ally"
-    ? allyPicks.findIndex(hero => hero === null)
-    : enemyPicks.findIndex(hero => hero === null);
-
-  if (nextEmpty !== -1) {
-    selectedSlot = nextEmpty;
+    const next = enemyPicks.findIndex(hero => hero === null);
+    if (next !== -1) selectedSlot = next;
   }
 
   renderTeamSlots();
-  renderHeroPicker(document.getElementById("heroSearch").value);
+  renderHeroPicker($("heroSearch")?.value || "");
   updateRecommendations();
 }
 
-/* BAN SLOTS */
+/* BANS */
 
 function renderBans() {
-  const container = document.getElementById("banSlots");
+  const container = $("banSlots");
+  if (!container) return;
 
-  document.getElementById("banCount").textContent =
-    `${bans.length} / 10`;
+  if ($("banCount")) {
+    $("banCount").textContent = `${bans.length} / 10`;
+  }
 
-  const slots = Array.from({ length: 10 }, (_, index) => {
+  container.innerHTML = Array.from({ length: 10 }, (_, index) => {
     const hero = bans[index];
 
     return `
       <button
         class="ban-slot ${hero ? "filled" : ""}"
         data-ban-slot="${index}"
+        type="button"
       >
         ${hero
           ? `<strong>${escapeHTML(hero)}</strong><small>Remove ×</small>`
@@ -336,9 +356,7 @@ function renderBans() {
         }
       </button>
     `;
-  });
-
-  container.innerHTML = slots.join("");
+  }).join("");
 
   container.querySelectorAll("[data-ban-slot]").forEach(button => {
     button.addEventListener("click", () => {
@@ -347,68 +365,30 @@ function renderBans() {
       if (bans[index]) {
         bans.splice(index, 1);
         renderBans();
-        renderHeroPicker(
-          document.getElementById("heroSearch").value
-        );
+        renderHeroPicker($("heroSearch")?.value || "");
         updateRecommendations();
       } else if (bans.length < 10) {
         selectedTeam = "ban";
-        selectedSlot = index;
 
-        document.getElementById("selectionHint").textContent =
-          `Selecting ban ${index + 1}`;
+        if ($("selectionHint")) {
+          $("selectionHint").textContent =
+            `Selecting ban ${bans.length + 1}`;
+        }
 
-        document.getElementById("heroSearch").focus();
+        $("heroSearch")?.focus();
       }
     });
   });
 }
 
-/* BAN SELECTION */
-
-const originalAddHero = addHero;
-
-addHero = function(heroName) {
-  if (selectedTeam === "ban") {
-    if (
-      bans.length >= 10 ||
-      bans.includes(heroName) ||
-      allyPicks.includes(heroName) ||
-      enemyPicks.includes(heroName)
-    ) {
-      return;
-    }
-
-    bans.push(heroName);
-
-    selectedTeam = "ally";
-    selectedSlot = allyPicks.findIndex(hero => hero === null);
-
-    if (selectedSlot === -1) selectedSlot = 0;
-
-    renderBans();
-    renderHeroPicker(
-      document.getElementById("heroSearch").value
-    );
-    updateRecommendations();
-
-    return;
-  }
-
-  originalAddHero(heroName);
-};
-
-/* CLEAR BANS */
-
-document.getElementById("clearBans").addEventListener("click", () => {
+on("clearBans", "click", () => {
   bans = [];
-
   renderBans();
   renderHeroPicker();
   updateRecommendations();
 });
 
-/* DRAFT RECOMMENDATION ENGINE */
+/* COUNTER HINTS */
 
 const COUNTER_HINTS = {
   Fanny: ["Khufra", "Kaja", "Franco", "Saber"],
@@ -448,6 +428,8 @@ const LANE_RECOMMENDATIONS = {
   ]
 };
 
+/* RECOMMENDATION ENGINE */
+
 function calculateRecommendations() {
   const enemies = enemyPicks.filter(Boolean);
   const teammates = allyPicks.filter(Boolean);
@@ -458,18 +440,23 @@ function calculateRecommendations() {
     ...bans
   ].filter(Boolean);
 
-  const candidates = LANE_RECOMMENDATIONS[selectedLane]
-    .filter(hero => !used.includes(hero));
+  const laneOnly = $("laneOnly")?.checked || false;
+
+  const candidates = laneOnly
+    ? LANE_RECOMMENDATIONS[selectedLane].filter(hero => !used.includes(hero))
+    : HEROES.filter(hero => !used.includes(hero));
 
   const results = candidates.map(hero => {
-    let score = 65;
+    let score = 60;
     const reasons = [];
 
-    // Lane-specific suggestions are a starting point,
-    // not a claim of official competitive pick strength.
-    reasons.push(`Fits the ${selectedLane} lane role.`);
+    if (LANE_RECOMMENDATIONS[selectedLane].includes(hero)) {
+      score += 10;
+      reasons.push(`Fits the ${selectedLane} lane.`);
+    } else {
+      reasons.push(`Consider whether ${hero} fits the ${selectedLane} lane.`);
+    }
 
-    // Counter hints.
     enemies.forEach(enemy => {
       if (COUNTER_HINTS[enemy]?.includes(hero)) {
         score += 13;
@@ -477,49 +464,43 @@ function calculateRecommendations() {
       }
     });
 
-    // Basic role and composition guidance.
-    if (selectedLane === "Gold") {
-      if (["Karrie", "Ixia", "Claude"].includes(hero)) {
-        reasons.push("Provides sustained team-fight damage.");
-      }
+    if (selectedLane === "Gold" &&
+        ["Karrie", "Ixia", "Claude"].includes(hero)) {
+      reasons.push("Provides sustained team-fight damage.");
     }
 
-    if (selectedLane === "Mid") {
-      if (["Luo Yi", "Pharsa", "Lylia"].includes(hero)) {
-        reasons.push("Adds magic damage and team-fight pressure.");
-      }
+    if (selectedLane === "Mid" &&
+        ["Luo Yi", "Pharsa", "Lylia"].includes(hero)) {
+      reasons.push("Adds magic damage and team-fight pressure.");
     }
 
-    if (selectedLane === "Jungle") {
-      if (["Fredrinn", "Barats"].includes(hero)) {
-        reasons.push("Can provide frontline presence.");
-      }
+    if (selectedLane === "Jungle" &&
+        ["Fredrinn", "Barats"].includes(hero)) {
+      reasons.push("Can provide frontline presence.");
     }
 
-    if (selectedLane === "EXP") {
-      if (["Terizla", "Yu Zhong", "Edith"].includes(hero)) {
-        reasons.push("Can contribute frontline presence and engage.");
-      }
+    if (selectedLane === "EXP" &&
+        ["Terizla", "Yu Zhong", "Edith"].includes(hero)) {
+      reasons.push("Can contribute frontline presence and engage.");
     }
 
-    if (selectedLane === "Roam") {
-      if (["Tigreal", "Minotaur", "Khufra"].includes(hero)) {
-        reasons.push("Offers team-fight initiation and crowd control.");
-      }
+    if (selectedLane === "Roam" &&
+        ["Tigreal", "Minotaur", "Khufra"].includes(hero)) {
+      reasons.push("Offers team-fight initiation and crowd control.");
     }
 
-    if (teammates.length > 0) {
-      reasons.push("Consider how this pick complements your current teammates.");
+    if (teammates.length) {
+      reasons.push("Check how this pick complements your teammates.");
     }
 
     if (selectedTiming === "Early") {
       score -= 2;
-      reasons.push("Early pick: consider a flexible, harder-to-counter choice.");
+      reasons.push("Early pick: prioritize flexible choices.");
     }
 
     if (selectedTiming === "Last") {
       score += 3;
-      reasons.push("Last pick: use the completed enemy draft to refine your matchup.");
+      reasons.push("Last pick: use the full enemy draft to refine your choice.");
     }
 
     return {
@@ -533,17 +514,14 @@ function calculateRecommendations() {
 }
 
 function updateRecommendations() {
-  const container = document.getElementById("recommendations");
-
+  const container = $("recommendations");
   if (!container) return;
 
   const results = calculateRecommendations();
 
-  if (results.length === 0) {
+  if (!results.length) {
     container.innerHTML = `
-      <div class="empty-state small-empty">
-        No recommendations available for this draft.
-      </div>
+      <div class="empty-state">No recommendations available.</div>
     `;
     return;
   }
@@ -566,10 +544,7 @@ function updateRecommendations() {
 
       <div class="recommendation-score">${item.score}</div>
 
-      <button
-        class="add-pick"
-        data-add-pick="${escapeHTML(item.hero)}"
-      >
+      <button class="add-pick" data-add-pick="${escapeHTML(item.hero)}" type="button">
         ADD TO TEAM
       </button>
     </div>
@@ -592,25 +567,20 @@ function updateRecommendations() {
   });
 }
 
-/* LANE MATCHUP OPTION */
-
-document.getElementById("laneOnly").addEventListener("change", () => {
-  updateRecommendations();
-});
+on("laneOnly", "change", updateRecommendations);
 
 /* HERO DATABASE */
 
 function renderDatabase(search = "") {
-  const container = document.getElementById("databaseHeroes");
+  const container = $("databaseHeroes");
+  if (!container) return;
 
   const results = HEROES.filter(hero =>
     hero.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (results.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">No heroes found.</div>
-    `;
+  if (!results.length) {
+    container.innerHTML = `<div class="empty-state">No heroes found.</div>`;
     return;
   }
 
@@ -618,33 +588,30 @@ function renderDatabase(search = "") {
     const stats = findStat(hero);
 
     return `
-      <button class="hero-card" data-open-hero="${escapeHTML(hero)}">
+      <button class="hero-card" data-open-hero="${escapeHTML(hero)}" type="button">
         <div class="hero-portrait">
           ${getHeroPortrait(hero)}
         </div>
         <strong>${escapeHTML(hero)}</strong>
-        <small>
-          Win rate: ${stats ? getRate(stats.winRate) : "—"}
-        </small>
+        <small>Win rate: ${stats ? getRate(stats.winRate) : "—"}</small>
       </button>
     `;
   }).join("");
 
   container.querySelectorAll("[data-open-hero]").forEach(button => {
     button.addEventListener("click", () => {
-      const hero = button.dataset.openHero;
       alert(
-        `${hero}\n\nDetailed hero profiles and matchup information are planned for a future RankPulse update.`
+        `${button.dataset.openHero}\n\nDetailed hero profiles are planned for a future RankPulse update.`
       );
     });
   });
 }
 
-document.getElementById("databaseSearch").addEventListener("input", event => {
+on("databaseSearch", "input", event => {
   renderDatabase(event.target.value);
 });
 
-/* API DATA NORMALIZATION */
+/* API NORMALIZATION */
 
 function getFirstValue(object, keys) {
   for (const key of keys) {
@@ -660,69 +627,51 @@ function getFirstValue(object, keys) {
 
 function normalizeHeroRecord(record) {
   const name = getFirstValue(record, [
-    "hero_name",
-    "name",
-    "hero",
-    "heroName",
-    "title"
+    "hero_name", "name", "hero", "heroName", "title"
   ]);
 
   if (!name) return null;
 
-  const image = getFirstValue(record, [
-    "avatar",
-    "hero_avatar",
-    "icon",
-    "cover",
-    "image",
-    "image_url"
-  ]);
-
   return {
     name: String(name),
-    image: image ? String(image) : null,
+
+    image: getFirstValue(record, [
+      "avatar", "hero_avatar", "icon", "cover", "image", "image_url"
+    ]),
 
     winRate: getFirstValue(record, [
-      "win_rate",
-      "winRate",
-      "winRateStr"
+      "win_rate", "winRate", "winRateStr"
     ]),
 
     pickRate: getFirstValue(record, [
-      "pick_rate",
-      "pickRate",
-      "pickRateStr"
+      "pick_rate", "pickRate", "pickRateStr"
     ]),
 
     banRate: getFirstValue(record, [
-      "ban_rate",
-      "banRate",
-      "banRateStr"
+      "ban_rate", "banRate", "banRateStr"
     ])
   };
 }
 
-/* FETCH REAL HERO RANKING DATA */
+/* LOAD HERO STATS */
 
 async function loadHeroStats() {
   if (isLoadingStats) return;
 
   isLoadingStats = true;
 
-  const status = document.getElementById("metaStatus");
-  const table = document.getElementById("metaTable");
+  const status = $("metaStatus");
+  const table = $("metaTable");
 
-  status.textContent = "Loading hero ranking data...";
+  if (status) status.textContent = "Loading hero ranking data...";
 
-  const rank = document.getElementById("rankFilter").value;
-  const sort = document.getElementById("sortFilter").value;
+  const rank = $("rankFilter")?.value || "all";
+  const sort = $("sortFilter")?.value || "win_rate";
 
   const url =
     `${API_BASE}/heroes/rank` +
-    `?days=7` +
-    `&rank=${encodeURIComponent(rank)}` +
-    `&sort_field=${encodeURIComponent(sort)}` +
-    `&size=200`;
+    `?days=7&rank=${encodeURIComponent(rank)}` +
+    `&sort_field=${encodeURIComponent(sort)}&size=200`;
 
   try {
     const response = await fetch(url);
@@ -747,37 +696,38 @@ async function loadHeroStats() {
       .map(normalizeHeroRecord)
       .filter(Boolean);
 
-    if (heroStats.length === 0) {
-      throw new Error("No recognizable hero records were returned");
+    if (!heroStats.length) {
+      throw new Error("No recognizable hero records returned");
     }
 
-    status.textContent =
-      `Loaded ${heroStats.length} hero records from the ranking API.`;
+    if (status) {
+      status.textContent =
+        `Loaded ${heroStats.length} hero records from the ranking API.`;
+    }
 
     renderMetaTable();
-    renderDatabase(
-      document.getElementById("databaseSearch").value
-    );
-    renderHeroPicker(
-      document.getElementById("heroSearch").value
-    );
+    renderDatabase($("databaseSearch")?.value || "");
+    renderHeroPicker($("heroSearch")?.value || "");
     renderTeamSlots();
     updateRecommendations();
 
   } catch (error) {
     console.error("RankPulse API error:", error);
 
-    status.textContent =
-      "Could not load hero statistics. Check the API response or try again.";
+    if (status) {
+      status.textContent =
+        "Could not load hero statistics. Please try again.";
+    }
 
-    table.innerHTML = `
-      <tr>
-        <td colspan="4" class="muted">
-          Hero statistics are currently unavailable.
-          No fake statistics are being displayed.
-        </td>
-      </tr>
-    `;
+    if (table) {
+      table.innerHTML = `
+        <tr>
+          <td colspan="4" class="muted">
+            Hero statistics are currently unavailable.
+          </td>
+        </tr>
+      `;
+    }
   } finally {
     isLoadingStats = false;
   }
@@ -786,25 +736,20 @@ async function loadHeroStats() {
 /* META TABLE */
 
 function renderMetaTable() {
-  const container = document.getElementById("metaTable");
+  const container = $("metaTable");
+  if (!container) return;
 
-  const sort = document.getElementById("sortFilter").value;
+  const sort = $("sortFilter")?.value || "win_rate";
+
+  const field = sort === "pick_rate"
+    ? "pickRate"
+    : sort === "ban_rate"
+      ? "banRate"
+      : "winRate";
 
   const sorted = [...heroStats].sort((a, b) => {
-    const aValue = Number(a[sort === "win_rate"
-      ? "winRate"
-      : sort === "pick_rate"
-        ? "pickRate"
-        : "banRate"
-    ]) || 0;
-
-    const bValue = Number(b[sort === "win_rate"
-      ? "winRate"
-      : sort === "pick_rate"
-        ? "pickRate"
-        : "banRate"
-    ]) || 0;
-
+    const aValue = parseFloat(a[field]) || 0;
+    const bValue = parseFloat(b[field]) || 0;
     return bValue - aValue;
   });
 
@@ -812,11 +757,10 @@ function renderMetaTable() {
     <tr>
       <td>
         <div class="table-hero">
-          <img
-            src="${escapeHTML(hero.image || "")}"
-            alt=""
-            onerror="this.style.display='none'"
-          >
+          ${hero.image
+            ? `<img src="${escapeHTML(hero.image)}" alt="" onerror="this.style.display='none'">`
+            : ""
+          }
           ${escapeHTML(hero.name)}
         </div>
       </td>
@@ -827,180 +771,210 @@ function renderMetaTable() {
   `).join("");
 }
 
-/* META FILTERS */
+on("refreshStats", "click", loadHeroStats);
+on("rankFilter", "change", loadHeroStats);
 
-document.getElementById("refreshStats").addEventListener(
-  "click",
-  loadHeroStats
-);
-
-document.getElementById("rankFilter").addEventListener(
-  "change",
-  loadHeroStats
-);
-
-document.getElementById("sortFilter").addEventListener(
-  "change",
-  () => {
-    if (heroStats.length > 0) {
-      renderMetaTable();
-    } else {
-      loadHeroStats();
-    }
+on("sortFilter", "change", () => {
+  if (heroStats.length) {
+    renderMetaTable();
+  } else {
+    loadHeroStats();
   }
-);
+});
 
-/* RANK TARGET — LOCAL DEMO */
+/* RANK TARGET */
 
-const rankSelect = document.getElementById("targetRank");
-const rankMessage = document.getElementById("rankMessage");
+const rankSelect = $("targetRank");
+const rankMessage = $("rankMessage");
 
-const savedRank = localStorage.getItem("rankpulse_target");
+if (rankSelect) {
+  const savedRank = localStorage.getItem("rankpulse_target");
 
-if (savedRank) {
-  rankSelect.value = savedRank;
+  if (savedRank) rankSelect.value = savedRank;
 }
 
-document.getElementById("saveRank").addEventListener("click", () => {
-  const value = rankSelect.value;
+on("saveRank", "click", () => {
+  const value = rankSelect?.value;
 
   if (!value) {
-    rankMessage.textContent = "Please choose a target rank first.";
+    if (rankMessage) {
+      rankMessage.textContent = "Please choose a target rank first.";
+    }
     return;
   }
 
   localStorage.setItem("rankpulse_target", value);
 
-  rankMessage.textContent = `Your target rank is set to ${value}.`;
+  if (rankMessage) {
+    rankMessage.textContent = `Your target rank is set to ${value}.`;
+  }
 });
 
-/* =====================================
-   RANKPULSE ACCOUNT AUTHENTICATION
-===================================== */
+/* ==========================================
+   RANKPULSE AUTHENTICATION
+========================================== */
+
+function setAuthMessage(message) {
+  const status = $("authStatus");
+  if (status) status.textContent = message;
+}
 
 async function updateAuthUI() {
-  const { data: { session } } =
-    await supabaseClient.auth.getSession();
+  if (!supabaseClient) {
+    setAuthMessage("Supabase could not load. Please refresh the website.");
+    return;
+  }
 
-  const status = document.getElementById("authStatus");
-  const forms = document.getElementById("authForms");
-  const signOut = document.getElementById("signOutButton");
-  const accountName = document.getElementById("topAccountName");
+  try {
+    const { data, error } =
+      await supabaseClient.auth.getSession();
 
-  if (session) {
-    const email = session.user.email || "RankPulse User";
+    if (error) throw error;
 
-    if (status) {
-      status.textContent = "Signed in as " + email;
+    const session = data.session;
+    const forms = $("authForms");
+    const signOut = $("signOutButton");
+    const accountName = $("topAccountName");
+
+    if (session) {
+      const email = session.user.email || "RankPulse User";
+
+      setAuthMessage("Signed in as " + email);
+
+      if (forms) forms.style.display = "none";
+      if (signOut) signOut.style.display = "block";
+      if (accountName) accountName.textContent = email;
+    } else {
+      setAuthMessage("You are not signed in.");
+
+      if (forms) forms.style.display = "block";
+      if (signOut) signOut.style.display = "none";
+      if (accountName) accountName.textContent = "Guest Account";
     }
-
-    if (forms) forms.style.display = "none";
-    if (signOut) signOut.style.display = "block";
-    if (accountName) accountName.textContent = email;
-  } else {
-    if (status) status.textContent = "You are not signed in.";
-    if (forms) forms.style.display = "block";
-    if (signOut) signOut.style.display = "none";
-    if (accountName) accountName.textContent = "Guest Account";
+  } catch (error) {
+    console.error("Auth session error:", error);
+    setAuthMessage(error.message || "Could not check your login.");
   }
 }
 
 /* CREATE ACCOUNT */
 
-document.getElementById("signUpButton")?.addEventListener("click", async () => {
-  alert("SIGN UP BUTTON WORKS");
+on("signUpButton", "click", async () => {
+  if (!supabaseClient) {
+    setAuthMessage("Supabase failed to load. Please refresh.");
+    return;
+  }
 
-  const email = document.getElementById("authEmail").value.trim();
-  const password = document.getElementById("authPassword").value;
-  const username = document.getElementById("authUsername").value.trim();
-  const status = document.getElementById("authStatus");
+  const email = $("authEmail")?.value.trim();
+  const password = $("authPassword")?.value;
+  const username = $("authUsername")?.value.trim();
 
   if (!email || !password || !username) {
-    status.textContent = "Please fill in all fields.";
+    setAuthMessage("Please fill in your username, email, and password.");
     return;
   }
 
   if (password.length < 6) {
-    status.textContent = "Password must be at least 6 characters.";
+    setAuthMessage("Password must be at least 6 characters.");
     return;
   }
 
-  status.textContent = "Creating your account...";
+  setAuthMessage("Creating your account...");
 
-  const { data, error } = await supabaseClient.auth.signUp({
-    email: email,
-    password: password,
-    options: {
-      data: {
-        username: username,
-        display_name: username
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username,
+          display_name: username
+        }
       }
+    });
+
+    if (error) throw error;
+
+    if (data.session) {
+      setAuthMessage("Account created successfully!");
+    } else {
+      setAuthMessage(
+        "Account created! Check your email for the confirmation link."
+      );
     }
-  });
 
-  if (error) {
-    status.textContent = error.message;
-    return;
+    await updateAuthUI();
+
+  } catch (error) {
+    console.error("Sign-up error:", error);
+    setAuthMessage(error.message || "Could not create your account.");
   }
-
-  if (data.session) {
-    status.textContent = "Account created successfully!";
-  } else {
-    status.textContent =
-      "Account created! Check your email for the confirmation link.";
-  }
-
-  await updateAuthUI();
 });
 
 /* SIGN IN */
 
-document.getElementById("signInButton")?.addEventListener("click", async () => {
-  const email = document.getElementById("authEmail").value.trim();
-  const password = document.getElementById("authPassword").value;
-  const status = document.getElementById("authStatus");
+on("signInButton", "click", async () => {
+  if (!supabaseClient) {
+    setAuthMessage("Supabase failed to load. Please refresh.");
+    return;
+  }
+
+  const email = $("authEmail")?.value.trim();
+  const password = $("authPassword")?.value;
 
   if (!email || !password) {
-    status.textContent = "Enter your email and password.";
+    setAuthMessage("Enter your email and password.");
     return;
   }
 
-  status.textContent = "Signing in...";
+  setAuthMessage("Signing in...");
 
-  const { error } = await supabaseClient.auth.signInWithPassword({
-    email: email,
-    password: password
-  });
+  try {
+    const { error } =
+      await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
 
-  if (error) {
-    status.textContent = error.message;
-    return;
+    if (error) throw error;
+
+    setAuthMessage("Welcome back!");
+    await updateAuthUI();
+
+  } catch (error) {
+    console.error("Sign-in error:", error);
+    setAuthMessage(error.message || "Could not sign in.");
   }
-
-  status.textContent = "Welcome back!";
-  await updateAuthUI();
 });
 
 /* SIGN OUT */
 
-document.getElementById("signOutButton")?.addEventListener("click", async () => {
-  const { error } = await supabaseClient.auth.signOut();
+on("signOutButton", "click", async () => {
+  if (!supabaseClient) return;
 
-  if (error) {
-    document.getElementById("authStatus").textContent = error.message;
-    return;
+  try {
+    const { error } = await supabaseClient.auth.signOut();
+
+    if (error) throw error;
+
+    await updateAuthUI();
+
+  } catch (error) {
+    setAuthMessage(error.message || "Could not sign out.");
   }
-
-  await updateAuthUI();
 });
 
-/* RESTORE LOGIN WHEN WEBSITE OPENS */
+/* RESTORE LOGIN */
 
-supabaseClient.auth.onAuthStateChange(() => {
+if (supabaseClient) {
+  supabaseClient.auth.onAuthStateChange(() => {
+    updateAuthUI();
+  });
+
   updateAuthUI();
-});
-
-updateAuthUI();
+} else {
+  setAuthMessage("Supabase library is unavailable. Please refresh.");
+}
 
 /* INITIALIZE WEBSITE */
 
@@ -1011,8 +985,9 @@ function initializeRankPulse() {
   renderDatabase();
   updateRecommendations();
 
-  // Load public hero ranking data.
   loadHeroStats();
 }
 
 initializeRankPulse();
+
+console.log("RankPulse JavaScript loaded successfully.");

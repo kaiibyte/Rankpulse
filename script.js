@@ -1,72 +1,297 @@
 
 /* =========================================
-   RANKPULSE — MAIN JAVASCRIPT
+   MLBB ACCOUNT CONNECT — RANKPULSE
 ========================================= */
 
-const SUPABASE_URL = "https://nwuyuncvtaliryuoqrap.supabase.co";
-const SUPABASE_KEY = "sb_publishable_qTkztL9y-_W4I-x99J0REQ_Y0TDwzzM";
-const API_BASE = "https://rankpulseapi.kaiiiiiiii6767.workers.dev/api";
-
-const $ = id => document.getElementById(id);
-
-const supabaseClient = window.supabase?.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
-
-let currentUser = null;
-let currentProfile = null;
-let matches = JSON.parse(localStorage.getItem("rankpulse_matches") || "[]");
-let heroes = [];
-let allyPicks = Array(5).fill(null);
-let enemyPicks = Array(5).fill(null);
-let bans = Array(10).fill(null);
-
-const RANKS = [
-  "Warrior", "Elite", "Master", "Grandmaster", "Epic",
-  "Legend", "Mythic", "Mythical Honor",
-  "Mythical Glory", "Mythical Immortal"
-];
-
-function escapeHTML(value) {
-  return String(value ?? "").replace(/[&<>"']/g, char => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;",
-    '"': "&quot;", "'": "&#39;"
-  })[char]);
-}
-
-function message(id, text, error = false) {
-  const element = $(id);
+function mlbbSetStatus(text, error = false) {
+  const element = $("mlbbConnectionStatus");
   if (!element) return;
+
   element.textContent = text;
   element.style.color = error ? "#ff5364" : "#08c5f5";
 }
 
-function saveMatches() {
-  localStorage.setItem("rankpulse_matches", JSON.stringify(matches));
-  renderMatches();
-  updateDashboard();
+function mlbbRenderLoggedOut() {
+  const panel = $("mlbbAccountPanel");
+  if (!panel) return;
+
+  panel.textContent = "Sign in to RankPulse to connect your MLBB account.";
+  mlbbSetStatus("");
 }
 
-function navigateTo(page) {
-  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
-  document.querySelectorAll(".nav-item").forEach(b => b.classList.remove("active"));
+function mlbbRenderForm() {
+  const panel = $("mlbbAccountPanel");
+  if (!panel) return;
 
-  $("page-" + page)?.classList.add("active");
-  document.querySelector(`[data-page="${page}"]`)?.classList.add("active");
+  panel.innerHTML = `
+    <div class="recommendation">
+      <h3>Connect your MLBB account</h3>
 
-  const button = document.querySelector(`[data-page="${page}"]`);
-  if ($("topbarTitle")) $("topbarTitle").textContent = button?.textContent || page;
+      <label class="field-label">MLBB Player ID</label>
+      <input
+        id="mlbbRoleId"
+        class="input-field"
+        type="text"
+        inputmode="numeric"
+        placeholder="Enter your Player ID"
+      >
 
-  if (page === "heroes" || page === "tierlist" || page === "movers") loadHeroes();
-  if (page === "support") loadTickets();
-  if (page === "friends") loadFriends();
-  if (page === "admin") loadAdmin();
+      <label class="field-label">Zone ID / Server ID</label>
+      <input
+        id="mlbbZoneId"
+        class="input-field"
+        type="text"
+        inputmode="numeric"
+        placeholder="Enter your Zone ID"
+      >
+
+      <button id="mlbbSendCodeButton" class="primary-button">
+        Send Verification Code
+      </button>
+
+      <div id="mlbbVerificationArea" style="display:none;margin-top:15px">
+        <label class="field-label">Verification Code</label>
+        <input
+          id="mlbbVerificationCode"
+          class="input-field"
+          type="text"
+          inputmode="numeric"
+          maxlength="8"
+          placeholder="Enter the code from your in-game mail"
+        >
+
+        <button id="mlbbVerifyCodeButton" class="primary-button">
+          Verify and Link Account
+        </button>
+      </div>
+    </div>
+  `;
+
+  $("mlbbSendCodeButton").onclick = requestMLBBCode;
+  $("mlbbVerifyCodeButton").onclick = verifyMLBBCode;
 }
 
-document.querySelectorAll("[data-page]").forEach(button => {
-  button.addEventListener("click", () => navigateTo(button.dataset.page));
-});
+async function mlbbApi(path, method = "GET", body = null) {
+  if (!supabaseClient) {
+    throw new Error("Supabase is not configured.");
+  }
+
+  const { data, error } = await supabaseClient.auth.getSession();
+
+  if (error) throw new Error(error.message);
+
+  const token = data.session?.access_token;
+
+  if (!token) {
+    throw new Error("Your RankPulse session expired. Please sign in again.");
+  }
+
+  const options = {
+    method,
+    headers: {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json"
+    }
+  };
+
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+
+  const response = await fetch(
+    `${API_BASE}/rankpulse/mlbb/${path}`,
+    options
+  );
+
+  let result = {};
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error("The server returned an invalid response.");
+  }
+
+  if (!response.ok) {
+    const detail =
+      result.message ||
+      (typeof result.detail === "string" ? result.detail : result.detail?.message) ||
+      result.msg ||
+      `Request failed (${response.status})`;
+
+    throw new Error(detail);
+  }
+
+  return result;
+}
+
+async function loadMLBBAccount() {
+  const panel = $("mlbbAccountPanel");
+
+  if (!panel) return;
+
+  if (!currentUser) {
+    mlbbRenderLoggedOut();
+    return;
+  }
+
+  panel.textContent = "Loading MLBB account...";
+
+  try {
+    const result = await mlbbApi("me");
+
+    if (result.linked && result.account) {
+      mlbbRenderLinkedAccount(result.account);
+    } else {
+      mlbbRenderForm();
+    }
+  } catch (error) {
+    mlbbRenderForm();
+    mlbbSetStatus(error.message, true);
+  }
+}
+
+function mlbbRenderLinkedAccount(account) {
+  const panel = $("mlbbAccountPanel");
+  if (!panel) return;
+
+  const avatar = /^https?:\/\//i.test(account.avatar_url || "")
+    ? account.avatar_url
+    : "";
+
+  const linkedDate = account.linked_at
+    ? new Date(account.linked_at).toLocaleDateString()
+    : "Unknown";
+
+  panel.innerHTML = `
+    <div class="recommendation">
+      ${avatar ? `
+        <img
+          src="${escapeHTML(avatar)}"
+          alt="MLBB avatar"
+          style="width:64px;height:64px;border-radius:50%;object-fit:cover"
+        >
+      ` : ""}
+
+      <h3>${escapeHTML(account.mlbb_name || "Linked MLBB Account")}</h3>
+      <p>Player ID: ${escapeHTML(account.role_id)}</p>
+      <p>Zone ID: ${escapeHTML(account.zone_id)}</p>
+      <p>Linked: ${escapeHTML(linkedDate)}</p>
+
+      <button id="mlbbDisconnectButton" class="outline-button">
+        Disconnect MLBB Account
+      </button>
+    </div>
+  `;
+
+  $("mlbbDisconnectButton").onclick = disconnectMLBBAccount;
+  mlbbSetStatus("Your MLBB account is connected.");
+}
+
+async function requestMLBBCode() {
+  if (!currentUser) {
+    return mlbbSetStatus("Sign in to RankPulse first.", true);
+  }
+
+  const roleId = $("mlbbRoleId")?.value.trim();
+  const zoneId = $("mlbbZoneId")?.value.trim();
+
+  if (!/^\d+$/.test(roleId || "") || !/^\d+$/.test(zoneId || "")) {
+    return mlbbSetStatus("Enter valid numeric Player ID and Zone ID.", true);
+  }
+
+  const button = $("mlbbSendCodeButton");
+  button.disabled = true;
+  button.textContent = "Sending...";
+
+  try {
+    await mlbbApi("send-code", "POST", {
+      role_id: Number(roleId),
+      zone_id: Number(zoneId)
+    });
+
+    $("mlbbVerificationArea").style.display = "block";
+
+    mlbbSetStatus(
+      "Verification code sent! Check your MLBB in-game mail. The code is valid for 5 minutes."
+    );
+  } catch (error) {
+    mlbbSetStatus(error.message, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Send Verification Code";
+  }
+}
+
+async function verifyMLBBCode() {
+  if (!currentUser) {
+    return mlbbSetStatus("Sign in to RankPulse first.", true);
+  }
+
+  const roleId = $("mlbbRoleId")?.value.trim();
+  const zoneId = $("mlbbZoneId")?.value.trim();
+  const code = $("mlbbVerificationCode")?.value.trim();
+
+  if (!/^\d+$/.test(roleId || "") || !/^\d+$/.test(zoneId || "")) {
+    return mlbbSetStatus("Enter valid Player ID and Zone ID.", true);
+  }
+
+  if (!/^\d{4,8}$/.test(code || "")) {
+    return mlbbSetStatus("Enter a valid verification code.", true);
+  }
+
+  const button = $("mlbbVerifyCodeButton");
+  button.disabled = true;
+  button.textContent = "Verifying...";
+
+  try {
+    const result = await mlbbApi("verify", "POST", {
+      role_id: Number(roleId),
+      zone_id: Number(zoneId),
+      vc: code
+    });
+
+    await loadMLBBAccount();
+
+    mlbbSetStatus(
+      result.message || "MLBB account linked successfully."
+    );
+  } catch (error) {
+    mlbbSetStatus(error.message, true);
+  } finally {
+    const verifyButton = $("mlbbVerifyCodeButton");
+
+    if (verifyButton) {
+      verifyButton.disabled = false;
+      verifyButton.textContent = "Verify and Link Account";
+    }
+  }
+}
+
+async function disconnectMLBBAccount() {
+  if (!currentUser) return;
+
+  if (!confirm("Disconnect your MLBB account from RankPulse?")) return;
+
+  try {
+    await mlbbApi("disconnect", "DELETE");
+    await loadMLBBAccount();
+    mlbbSetStatus("MLBB account disconnected.");
+  } catch (error) {
+    mlbbSetStatus(error.message, true);
+  }
+}
+
+/* Keep the MLBB panel updated when RankPulse authentication changes. */
+const rankPulseOriginalRefreshAuth = refreshAuth;
+
+refreshAuth = async function() {
+  await rankPulseOriginalRefreshAuth();
+
+  if (!currentUser) {
+    mlbbRenderLoggedOut();
+  }
+};
+
 
 /* =========================================
    AUTHENTICATION

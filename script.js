@@ -1,7 +1,16 @@
 
-/* ==========================================
-   RANKPULSE — MAIN JAVASCRIPT
-   ========================================== */
+/* SUPABASE CONNECTION */
+
+const SUPABASE_URL = "https://nwuyuncvtaliryuoqrap.supabase.co";
+
+const SUPABASE_KEY = "sb_publishable_qTkztL9y-_W4I-x99J0REQ_Y0TDwzzM";
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+/* RANKPULSE MLBB API */
 
 const API_BASE =
   "https://rankpulseapi.kaiiiiiiii6767.workers.dev/api";

@@ -908,6 +908,8 @@ async function updateAuthUI() {
 /* CREATE ACCOUNT */
 
 document.getElementById("signUpButton")?.addEventListener("click", async () => {
+  alert("SIGN UP BUTTON WORKS");
+
   const email = document.getElementById("authEmail").value.trim();
   const password = document.getElementById("authPassword").value;
   const username = document.getElementById("authUsername").value.trim();

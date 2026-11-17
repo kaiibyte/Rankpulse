@@ -1,4 +1,3 @@
-
 /* SUPABASE CONNECTION */
 
 const SUPABASE_URL = "https://nwuyuncvtaliryuoqrap.supabase.co";

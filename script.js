@@ -875,6 +875,132 @@ document.getElementById("saveRank").addEventListener("click", () => {
   rankMessage.textContent = `Your target rank is set to ${value}.`;
 });
 
+/* =====================================
+   RANKPULSE ACCOUNT AUTHENTICATION
+===================================== */
+
+async function updateAuthUI() {
+  const { data: { session } } =
+    await supabaseClient.auth.getSession();
+
+  const status = document.getElementById("authStatus");
+  const forms = document.getElementById("authForms");
+  const signOut = document.getElementById("signOutButton");
+  const accountName = document.getElementById("topAccountName");
+
+  if (session) {
+    const email = session.user.email || "RankPulse User";
+
+    if (status) {
+      status.textContent = "Signed in as " + email;
+    }
+
+    if (forms) forms.style.display = "none";
+    if (signOut) signOut.style.display = "block";
+    if (accountName) accountName.textContent = email;
+  } else {
+    if (status) status.textContent = "You are not signed in.";
+    if (forms) forms.style.display = "block";
+    if (signOut) signOut.style.display = "none";
+    if (accountName) accountName.textContent = "Guest Account";
+  }
+}
+
+/* CREATE ACCOUNT */
+
+document.getElementById("signUpButton")?.addEventListener("click", async () => {
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value;
+  const username = document.getElementById("authUsername").value.trim();
+  const status = document.getElementById("authStatus");
+
+  if (!email || !password || !username) {
+    status.textContent = "Please fill in all fields.";
+    return;
+  }
+
+  if (password.length < 6) {
+    status.textContent = "Password must be at least 6 characters.";
+    return;
+  }
+
+  status.textContent = "Creating your account...";
+
+  const { data, error } = await supabaseClient.auth.signUp({
+    email: email,
+    password: password,
+    options: {
+      data: {
+        username: username,
+        display_name: username
+      }
+    }
+  });
+
+  if (error) {
+    status.textContent = error.message;
+    return;
+  }
+
+  if (data.session) {
+    status.textContent = "Account created successfully!";
+  } else {
+    status.textContent =
+      "Account created! Check your email for the confirmation link.";
+  }
+
+  await updateAuthUI();
+});
+
+/* SIGN IN */
+
+document.getElementById("signInButton")?.addEventListener("click", async () => {
+  const email = document.getElementById("authEmail").value.trim();
+  const password = document.getElementById("authPassword").value;
+  const status = document.getElementById("authStatus");
+
+  if (!email || !password) {
+    status.textContent = "Enter your email and password.";
+    return;
+  }
+
+  status.textContent = "Signing in...";
+
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email: email,
+    password: password
+  });
+
+  if (error) {
+    status.textContent = error.message;
+    return;
+  }
+
+  status.textContent = "Welcome back!";
+  await updateAuthUI();
+});
+
+/* SIGN OUT */
+
+document.getElementById("signOutButton")?.addEventListener("click", async () => {
+  const { error } = await supabaseClient.auth.signOut();
+
+  if (error) {
+    document.getElementById("authStatus").textContent = error.message;
+    return;
+  }
+
+  await updateAuthUI();
+});
+
+/* RESTORE LOGIN WHEN WEBSITE OPENS */
+
+supabaseClient.auth.onAuthStateChange(() => {
+  updateAuthUI();
+});
+
+updateAuthUI();
+
 /* INITIALIZE WEBSITE */
 
 function initializeRankPulse() {
